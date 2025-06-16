@@ -1,10 +1,14 @@
 package com.home_banking_.model;
 
 import com.home_banking_.enums.TypeCard;
+import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 
+@Entity
 public class Card {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String number;
     private LocalDateTime expiration;
@@ -12,4 +16,8 @@ public class Card {
     private TypeCard typeCard;
 
     private Account associated_Account;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private Users users;
 }
