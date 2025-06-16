@@ -15,7 +15,9 @@ public class Card {
     private String CVV;
     private TypeCard typeCard;
 
-    private Account associated_Account;
+    @ManyToOne
+    @JoinColumn(name = "account_id")
+    private Account account;
 
     @ManyToOne
     @JoinColumn(name = "user_id")

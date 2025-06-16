@@ -16,6 +16,8 @@ public class Loan {
     private BigDecimal interestRate;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
+
+    @Enumerated(EnumType.STRING)
     private StatusLoan statusLoan;
 
     @ManyToOne

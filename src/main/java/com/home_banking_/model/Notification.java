@@ -13,6 +13,8 @@ public class Notification {
     private String message;
     private LocalDateTime shippingDate;
     private Boolean read;
+
+    @Enumerated(EnumType.STRING)
     private TypeNotification typeNotification;
 
     @ManyToOne

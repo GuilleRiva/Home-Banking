@@ -16,6 +16,8 @@ public class Payment {
     private BigDecimal amount;
     private LocalDateTime paymentDate;
     private ServiceEntity serviceEntity;
+
+    @Enumerated(EnumType.STRING)
     private StatusPayment statusPayment;
 
     @ManyToOne

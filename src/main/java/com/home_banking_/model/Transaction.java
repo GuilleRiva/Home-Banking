@@ -21,10 +21,10 @@ public class Transaction {
 
     @ManyToOne
     @JoinColumn(name = "account_origin_id")
-    private Account accountOrigin;
+    private Account account_origin;
 
     @ManyToOne
-    @JoinColumn(name = "account_destiny_id")
-    private Account accountDestiny;
+    @JoinColumn(name = "account_destiny")
+    private Account account_destiny;
 
 }

@@ -19,6 +19,7 @@ public class Users {
     private String DNI;
     private LocalDateTime registrationDate;
 
+    @Enumerated(EnumType.STRING)
     private Rol rol;
 
     @OneToMany(mappedBy = "users", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

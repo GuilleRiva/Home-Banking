@@ -17,7 +17,9 @@ public class Account {
     private String CBU;
     private LocalDateTime creationDate;
 
+    @Enumerated(EnumType.STRING)
     private TypeAccount typeAccount;
+    @Enumerated(EnumType.STRING)
     private StatusAccount statusAccount;
 
     @ManyToOne
@@ -35,5 +37,8 @@ public class Account {
 
     @OneToMany(mappedBy = "account")
     private List<Payment> payments;
+
+    @OneToMany(mappedBy = "account")
+    private List<Card> cards;
 
 }
