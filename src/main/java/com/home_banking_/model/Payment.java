@@ -3,10 +3,12 @@ package com.home_banking_.model;
 import com.home_banking_.enums.ServiceEntity;
 import com.home_banking_.enums.StatusPayment;
 import jakarta.persistence.*;
+import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@Data
 @Entity
 public class Payment {
     @Id

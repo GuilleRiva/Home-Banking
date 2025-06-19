@@ -2,10 +2,12 @@ package com.home_banking_.model;
 
 import com.home_banking_.enums.Rol;
 import jakarta.persistence.*;
+import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Data
 @Entity
 @Table(name = "users")
 public class Users {

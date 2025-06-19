@@ -7,5 +7,6 @@ public enum StatusLoan {
     FINALIZADO,
     RECHAZADO,
     MOROSO,
-    CANCELADO
+    CANCELADO,
+    SIMULADO
 }

@@ -4,10 +4,12 @@ import com.home_banking_.enums.MovementAccountType;
 import com.home_banking_.enums.StatusTransaction;
 import com.home_banking_.enums.TypeTransaction;
 import jakarta.persistence.*;
+import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+@Data
 @Entity
 public class Transaction {
     @Id

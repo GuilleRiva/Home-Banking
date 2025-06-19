@@ -3,17 +3,21 @@ package com.home_banking_.model;
 import com.home_banking_.enums.StatusAccount;
 import com.home_banking_.enums.TypeAccount;
 import jakarta.persistence.*;
+import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
+@Data
 public class Account {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String accountNumber;
     private String alias;
+    private BigDecimal balance;
     private String CBU;
     private LocalDateTime creationDate;
 

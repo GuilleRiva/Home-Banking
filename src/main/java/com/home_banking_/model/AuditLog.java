@@ -1,9 +1,11 @@
 package com.home_banking_.model;
 
 import jakarta.persistence.*;
+import lombok.Data;
 
 import java.time.LocalDateTime;
 
+@Data
 @Entity
 @Table(name = "audit_log")
 public class AuditLog {

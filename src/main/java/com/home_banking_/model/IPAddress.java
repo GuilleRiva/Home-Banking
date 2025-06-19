@@ -1,10 +1,12 @@
 package com.home_banking_.model;
 
 import jakarta.persistence.*;
+import lombok.Data;
 
 
 import java.time.LocalDateTime;
 
+@Data
 @Entity
 @Table(name = "ip_address")
 public class IPAddress {

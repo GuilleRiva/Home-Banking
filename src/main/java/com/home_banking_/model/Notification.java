@@ -2,9 +2,11 @@ package com.home_banking_.model;
 
 import com.home_banking_.enums.TypeNotification;
 import jakarta.persistence.*;
+import lombok.Data;
 
 import java.time.LocalDateTime;
 
+@Data
 @Entity
 public class Notification {
     @Id
