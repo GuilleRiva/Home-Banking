@@ -54,8 +54,8 @@ public class TransactionServiceImpl implements TransactionService {
 
         //register transaction
         Transaction transaction = new Transaction();
-        transaction.setAccount_origin(origin);
-        transaction.setAccount_destiny(destiny);
+        transaction.setAccountOrigin(origin);
+        transaction.setAccountDestiny(destiny);
         transaction.setAmount(amount);
         transaction.setTypeTransaction(TypeTransaction.DEPOSITO);
         transaction.setStatusTransaction(StatusTransaction.COMPLETED);
@@ -67,12 +67,12 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Override
     public List<Transaction> getTransactionsByAccount(Long accountId) {
-        return transactionRepository.findByAccountOrigin_IdOrAccountDestiny_Id(accountId, accountId);
+        return transactionRepository.findByAccountOrigin_Users_IdOrAccountDestiny_Users_Id(accountId, accountId);
     }
 
 
     @Override
     public List<Transaction> getTransactionsByUser(Long userId) {
-        return transactionRepository.findByAccountOrigin_User_IdOrAccountDestiny_User_Id(userId, userId);
+        return transactionRepository.findByAccountOrigin_Users_IdOrAccountDestiny_Users_Id(userId, userId);
     }
 }

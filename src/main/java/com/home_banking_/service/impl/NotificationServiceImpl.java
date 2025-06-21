@@ -40,19 +40,19 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public List<Notification> createNotificationByUser(Long userId) {
-        return notificationRepository.findByUser_IdAndUnreadFalseOrderByDateShipmentDesc(userId);
+        return notificationRepository.findByUsers_IdAndReadFalseOrderByShippingDateDesc(userId);
     }
 
 
     @Override
     public List<Notification> getNotificationByUser(Long userId) {
-        return notificationRepository.findByUser_IdOrderByDateShipmentDes(userId);
+        return notificationRepository.findByUsers_IdOrderByShippingDateDesc(userId);
     }
 
 
     @Override
     public List<Notification> getUnreadByUser(Long userId) {
-        return notificationRepository.findByUser_IdAndUnreadFalseOrderByDateShipmentDesc(userId);
+        return notificationRepository.findByUsers_IdAndReadFalseOrderByShippingDateDesc(userId);
     }
 
 

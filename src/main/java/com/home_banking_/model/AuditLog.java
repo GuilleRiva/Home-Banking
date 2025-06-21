@@ -1,5 +1,6 @@
 package com.home_banking_.model;
 
+import com.home_banking_.enums.AuditType;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -16,6 +17,9 @@ public class AuditLog {
     private String description;
     private LocalDateTime dateTime;
     private String ipOrigin;
+
+    @Enumerated(EnumType.STRING)
+    private AuditType type;
 
     @ManyToOne
     @JoinColumn(name = "user_id")

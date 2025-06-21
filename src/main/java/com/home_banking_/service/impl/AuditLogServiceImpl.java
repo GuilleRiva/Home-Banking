@@ -6,6 +6,7 @@ import com.home_banking_.model.Users;
 import com.home_banking_.repository.AuditLogRepository;
 import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.AuditLogService;
+import org.apache.catalina.User;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -35,15 +36,15 @@ public class AuditLogServiceImpl implements AuditLogService {
         auditLogRepository.save(log);
     }
 
-
     @Override
-    public List<AuditLog> getLogsByUser(Long userId) {
-        return auditLogRepository.findByUser_IdOrderByDateDesc(userId);
+    public List<AuditLog> getLogsByUser(Long user_id) {
+        return auditLogRepository.findByUsers_IdOrderByDateTimeDesc(user_id);
     }
+
 
 
     @Override
     public List<AuditLog> getLogsByType(String type) {
-        return auditLogRepository.findByTypeOrderByDateDesc(type);
+        return auditLogRepository.findAllByOrderByDateTimeDesc();
     }
 }

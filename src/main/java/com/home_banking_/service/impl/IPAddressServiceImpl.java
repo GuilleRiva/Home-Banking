@@ -24,8 +24,8 @@ public class IPAddressServiceImpl implements IPAddressService {
 
 
     @Override
-    public IPAddress registerIP(Long userId, String ip) {
-        Users users= usersRepository.findById(userId)
+    public IPAddress registerIP(Long user_id, String ip) {
+        Users users= usersRepository.findById(user_id)
                 .orElseThrow(()-> new ResourceNotFoundException("user not found"));
 
         IPAddress ipAddress = new IPAddress();
@@ -55,9 +55,11 @@ public class IPAddressServiceImpl implements IPAddressService {
 
 
     @Override
-    public List<IPAddress> getIPsByUser(Long userID) {
-        return ipAddressRepository.findByUser(userID);
+    public List<IPAddress> getIPsByUser(Users users) {
+        return ipAddressRepository.findByUsers(users);
     }
+
+
 
 
     @Override

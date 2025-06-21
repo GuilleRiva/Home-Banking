@@ -54,11 +54,12 @@ public class PaymentServiceImpl implements PaymentService {
         return paymentRepository.save(payment);
     }
 
-
     @Override
     public List<Payment> getPaymentByAccount(Long accountId) {
-        return paymentRepository.findByAccount(accountId);
+        return paymentRepository.findByAccount_Id(accountId);
     }
+
+
 
     @Override
     public List<Payment> getPaymentByEntity(ServiceEntity entity) {

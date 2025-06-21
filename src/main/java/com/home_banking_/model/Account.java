@@ -1,16 +1,19 @@
 package com.home_banking_.model;
-
 import com.home_banking_.enums.StatusAccount;
 import com.home_banking_.enums.TypeAccount;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-@Entity
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
 public class Account {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,6 +26,7 @@ public class Account {
 
     @Enumerated(EnumType.STRING)
     private TypeAccount typeAccount;
+
     @Enumerated(EnumType.STRING)
     private StatusAccount statusAccount;
 
@@ -30,10 +34,11 @@ public class Account {
     @JoinColumn(name = "user_id")
     private Users users;
 
-    @OneToMany(mappedBy = "account_origin")
+
+    @OneToMany(mappedBy = "accountOrigin")
     private List<Transaction> transactionOrigin;
 
-    @OneToMany(mappedBy = "account_destiny")
+    @OneToMany(mappedBy = "accountDestiny")
     private List<Transaction> transactionDestiny;
 
     @OneToMany(mappedBy = "account")
@@ -44,5 +49,6 @@ public class Account {
 
     @OneToMany(mappedBy = "account")
     private List<Card> cards;
+
 
 }

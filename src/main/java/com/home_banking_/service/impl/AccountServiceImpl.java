@@ -65,6 +65,7 @@ public class AccountServiceImpl implements AccountService {
                 .orElseThrow(()-> new ResourceNotFoundException("Account not found with alias: " + alias));
     }
 
+
     @Override
     public void deleteAccount(Long id) {
         Account account = getAccountById(id);

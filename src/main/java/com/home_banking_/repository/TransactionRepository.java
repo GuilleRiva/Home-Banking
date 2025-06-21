@@ -10,7 +10,6 @@ import java.util.Optional;
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
 
-List<Transaction> findByAccountOrigin_IdOrAccountDestiny_Id(Long originId, Long destinyId);
+List<Transaction> findByAccountOrigin_Users_IdOrAccountDestiny_Users_Id(Long userId1, Long userId2);
 
-List<Transaction> findByAccountOrigin_User_IdOrAccountDestiny_User_Id(Long userIdOrigin, Long userIdDestiny);
 }
