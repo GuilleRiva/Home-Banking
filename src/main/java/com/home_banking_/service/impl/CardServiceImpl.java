@@ -2,6 +2,7 @@ package com.home_banking_.service.impl;
 
 import com.home_banking_.enums.StatusCard;
 import com.home_banking_.enums.TypeCard;
+import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.model.Account;
 import com.home_banking_.model.Card;
@@ -62,6 +63,10 @@ public class CardServiceImpl implements CardService {
     public void cancelCard(Long cardId) {
         Card card = cardRepository.findById(cardId)
                 .orElseThrow(()-> new ResourceNotFoundException("Card not found"));
+
+        if (card.getStatusCard()== StatusCard.BLOCKED){
+            throw new BusinessException("Card is already blocked");
+        }
 
         card.setStatusCard(StatusCard.BLOCKED);
         cardRepository.save(card);

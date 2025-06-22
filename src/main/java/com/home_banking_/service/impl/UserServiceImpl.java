@@ -6,6 +6,7 @@ import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.UserService;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -30,12 +31,19 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public Users createUser(Users user) {
+        user.setRegistrationDate(LocalDateTime.now());
+        return usersRepository.save(user);
+    }
+
+
+    @Override
     public List<Users> findAll() {
         return usersRepository.findAll();
     }
 
     @Override
-    public Users save(Users users) {
+    public Users save(Long id, Users users) {
         return usersRepository.save(users);
     }
 

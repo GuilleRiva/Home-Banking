@@ -9,6 +9,8 @@ public interface AccountService {
 
     Account createAccount(Account account, Long userId);
 
+    List<Account> getAll();
+
     Account getAccountById(Long id);
 
     List<Account> getAccountByUserId(Long userId);

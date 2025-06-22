@@ -11,5 +11,6 @@ import java.util.List;
 public interface IPAddressRepository extends JpaRepository<IPAddress, Long> {
 
     List<IPAddress> findByUsers(Users users);
+
     boolean existsByDirectionIPAndSuspiciousTrue(String ip);
 }
