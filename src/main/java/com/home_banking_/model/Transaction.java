@@ -17,8 +17,14 @@ public class Transaction {
     private Long id;
     private BigDecimal amount;
     private LocalDateTime creationDate;
+
+    @Enumerated(EnumType.STRING)
     private MovementAccountType movementAccount;
+
+    @Enumerated(EnumType.STRING)
     private StatusTransaction statusTransaction;
+
+    @Enumerated(EnumType.STRING)
     private TypeTransaction typeTransaction;
 
     @ManyToOne

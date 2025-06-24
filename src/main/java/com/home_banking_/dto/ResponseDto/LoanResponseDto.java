@@ -1,17 +1,17 @@
-package com.home_banking_.model;
+package com.home_banking_.dto.ResponseDto;
 
-import com.home_banking_.enums.StatusLoan;
-import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
-@Entity
-public class Loan {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+@AllArgsConstructor
+@NoArgsConstructor
+public class LoanResponseDto {
+
     private Long id;
     private BigDecimal amount;
     private Integer quotas;
@@ -20,12 +20,5 @@ public class Loan {
     private BigDecimal amountQuota;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
-
-    @Enumerated(EnumType.STRING)
-    private StatusLoan statusLoan;
-
-    @ManyToOne
-    @JoinColumn(name = "account_id")
-    private Account account;
-
+    private String statusLoan;
 }

@@ -17,6 +17,8 @@ public class Payment {
     private String description;
     private BigDecimal amount;
     private LocalDateTime paymentDate;
+
+    @Enumerated(EnumType.STRING)
     private ServiceEntity serviceEntity;
 
     @Enumerated(EnumType.STRING)
