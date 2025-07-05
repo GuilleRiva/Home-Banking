@@ -2,7 +2,7 @@ package com.home_banking_.service;
 
 import com.home_banking_.dto.RequestDto.UserRequestDto;
 import com.home_banking_.dto.ResponseDto.UserResponseDto;
-import com.home_banking_.model.Users;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -17,7 +17,7 @@ public interface UserService {
 
     List<UserResponseDto> findAll();
 
-    UserResponseDto save(Long id , UserRequestDto dto);
+    UserResponseDto save(Long id , @Valid UserResponseDto dto);
 
     void deleteById(Long id);
 }

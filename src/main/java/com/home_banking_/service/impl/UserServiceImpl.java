@@ -8,6 +8,7 @@ import com.home_banking_.mappers.UsersMapper;
 import com.home_banking_.model.Users;
 import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -59,7 +60,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserResponseDto save(Long id, UserRequestDto dto) {
+    public UserResponseDto save(Long id, @Valid UserResponseDto dto) {
         Users existingUser = usersRepository.findById(id)
                 .orElseThrow(()-> new ResourceNotFoundException("User not found with ID:" + id));
 

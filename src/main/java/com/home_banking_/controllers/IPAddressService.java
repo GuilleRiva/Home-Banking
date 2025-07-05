@@ -1,5 +1,6 @@
 package com.home_banking_.controllers;
 
+import com.home_banking_.dto.ResponseDto.IPAddressResponseDto;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.model.IPAddress;
 import com.home_banking_.model.Users;
@@ -21,10 +22,10 @@ public class IPAddressService {
 
 
     @PostMapping("/register")
-    public ResponseEntity<IPAddress>registerIP(@RequestParam Long userId,
-                                                @RequestParam String ip){
+    public ResponseEntity<IPAddressResponseDto>registerIP(@RequestParam Long userId,
+                                                          @RequestParam String ip){
 
-        IPAddress registeredIP = ipAddressService.registerIP(userId, ip).getBody();
+        IPAddressResponseDto registeredIP = ipAddressService.registerIP(userId, ip).getBody();
         return ResponseEntity.status(HttpStatus.CREATED).body(registeredIP);
     }
 
@@ -43,11 +44,11 @@ public class IPAddressService {
 
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<IPAddress>> getIPsByUser(@PathVariable Long userId){
+    public ResponseEntity<List<IPAddressResponseDto>> getIPsByUser(@PathVariable Long userId){
         Users users = usersRepository.findById(userId)
                 .orElseThrow(()-> new ResourceNotFoundException("User not found"));
 
-        List<IPAddress> ipList = ipAddressService.getIPsByUser(users.getId()).getBody();
+        List<IPAddressResponseDto> ipList = ipAddressService.getIPsByUser(users.getId()).getBody();
         return ResponseEntity.ok(ipList);
 
     }
