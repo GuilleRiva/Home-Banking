@@ -14,4 +14,7 @@ public class LoanRequestDto {
     @NotBlank(message = "quotas are required ")
     private Integer quotas;
 
+    private Long accountId;
+
+
 }

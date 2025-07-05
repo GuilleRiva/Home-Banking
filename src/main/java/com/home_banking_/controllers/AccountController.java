@@ -1,9 +1,10 @@
 package com.home_banking_.controllers;
 
-import com.home_banking_.model.Account;
+import com.home_banking_.dto.RequestDto.AccountRequestDto;
+import com.home_banking_.dto.ResponseDto.AccountResponseDto;
 import com.home_banking_.service.AccountService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,27 +20,22 @@ public class AccountController {
     private final AccountService accountService;
 
     @GetMapping
-    public ResponseEntity<List<Account>> getAll(){
-        List<Account> accounts = accountService.getAll();
+    public ResponseEntity<List<AccountResponseDto>> getAll(){
+        List<AccountResponseDto> accounts = accountService.getAll();
 
         return ResponseEntity.ok(accounts);
     }
 
 
     @GetMapping("/{accountId}")
-    public ResponseEntity<Account>getById(@PathVariable Long accountId){
-        Account account = accountService.getAccountById(accountId);
+    public ResponseEntity<AccountResponseDto>getById(@PathVariable Long accountId){
+        AccountResponseDto account = accountService.getAccountById(accountId);
 
         return ResponseEntity.ok(account);
 
     }
 
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Account>> getAccountByUserId(@PathVariable Long userId){
-        List<Account> accounts = accountService.getAccountByUserId(userId);
-        return ResponseEntity.ok(accounts);
-    }
 
 
     @GetMapping("/{accountId}/balance")
@@ -51,16 +47,16 @@ public class AccountController {
     }
 
 
-    @PostMapping
-    public ResponseEntity<Account>createAccount(@RequestBody Account newAccount, Long accountId){
-        Account created = accountService.createAccount(newAccount, accountId);
-        return new ResponseEntity<>(created, HttpStatus.CREATED);
+    @PostMapping("/account")
+    public ResponseEntity<AccountResponseDto>createAccount(@RequestBody @Valid AccountRequestDto dto){
+        AccountResponseDto created = accountService.createAccount(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
 
     }
 
     @GetMapping("/alias/{alias}")
-    public ResponseEntity<Account>getAccountByAlias(@PathVariable String alias){
-        Account account = accountService.getAccountByAlias(alias);
+    public ResponseEntity<AccountResponseDto> getAccountByAlias(@PathVariable String alias){
+        AccountResponseDto account = accountService.getAccountByAlias(alias);
         return ResponseEntity.ok(account);
     }
 

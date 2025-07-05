@@ -1,8 +1,11 @@
 package com.home_banking_.service.impl;
 
+import com.home_banking_.dto.RequestDto.LoanRequestDto;
+import com.home_banking_.dto.ResponseDto.LoanResponseDto;
 import com.home_banking_.enums.StatusLoan;
 import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.exceptions.ResourceNotFoundException;
+import com.home_banking_.mappers.LoanMapper;
 import com.home_banking_.model.Account;
 import com.home_banking_.model.Loan;
 import com.home_banking_.repository.AccountRepository;
@@ -20,56 +23,61 @@ public class LoanServiceImpl implements LoanService {
 
     private final AccountRepository accountRepository;
     private final LoanRepository loanRepository;
+    private final LoanMapper loanMapper;
 
-    public LoanServiceImpl(AccountRepository accountRepository, LoanRepository loanRepository) {
+    public LoanServiceImpl(AccountRepository accountRepository, LoanRepository loanRepository, LoanMapper loanMapper) {
         this.accountRepository = accountRepository;
         this.loanRepository = loanRepository;
+        this.loanMapper = loanMapper;
     }
 
 
     @Override
-    public Loan simulateLoans(BigDecimal amount, int quotas, BigDecimal interestRate) {
-        BigDecimal interest = amount.multiply(interestRate);
-        BigDecimal total = amount.add(interest);
-        BigDecimal MonthlyQuota = total.divide(BigDecimal.valueOf(quotas), 2 , RoundingMode.HALF_UP);
+    public LoanResponseDto simulateLoans(LoanRequestDto dto) {
+        Account account = accountRepository.findById(dto.getAccountId())
+                .orElseThrow(()-> new ResourceNotFoundException( "Account not found"));
 
-        Loan simulation = new Loan();
-        simulation.setAmount(String.valueOf(amount));
-        simulation.setQuotas(String.valueOf(quotas));
-        simulation.setInterestRate(interestRate);
-        simulation.setTotalToPay(total);
-        simulation.setStatusLoan(StatusLoan.SIMULADO);
-        simulation.setStartDate(LocalDateTime.now());
-
-        return simulation;
+        Loan simulatedLoan = buildLoanFromDto(dto, account);
+        return loanMapper.toDto(simulatedLoan);
     }
 
 
     @Override
-    public Loan grantLoan(Long amountId, BigDecimal amount, int quotas, BigDecimal interestRate) {
-        Account account = accountRepository.findById(amountId)
+    public LoanResponseDto grantLoan(LoanRequestDto dto) {
+        Account account = accountRepository.findById(dto.getAccountId())
                 .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
 
-        if (amount.compareTo(BigDecimal.ZERO) <= 0){
-            throw new BusinessException("The loan amount must be greater than 0");
-        }
-
-        Loan loan = simulateLoans(amount, quotas, interestRate);
-        loan.setAccount(account);
+        Loan loan = buildLoanFromDto(dto, account);
         loan.setStatusLoan(StatusLoan.EN_CURSO);
         loan.setStartDate(LocalDateTime.now());
+        loan.setEndDate(LocalDateTime.now().plusMonths(Long.parseLong(String.valueOf(dto.getQuotas()))));
 
-
-        //credit the money
-        account.setBalance(account.getBalance().add(amount));
-        accountRepository.save(account);
-
-        return loanRepository.save(loan);
+        loanRepository.save(loan);
+        return loanMapper.toDto(loan);
     }
 
 
     @Override
-    public Optional<Loan> getLoanByAccount(Long accountId) {
-        return loanRepository.findByAccountId(accountId);
+    public Optional<LoanResponseDto> getLoanByAccount(Long accountId) {
+        Optional<Loan> loan = loanRepository.findByAccountId(accountId);
+        return loan.map(loanMapper::toDto);
+    }
+
+
+    private Loan buildLoanFromDto(LoanRequestDto dto, Account account){
+        BigDecimal amount = new BigDecimal(String.valueOf(dto.getAmount()));
+        BigDecimal interestRate = BigDecimal.valueOf(0.20);
+        BigDecimal totalToPay = amount.add(amount.multiply(interestRate));
+        BigDecimal quotaAmount = totalToPay.divide(new BigDecimal(dto.getQuotas()), 2, RoundingMode.HALF_UP);
+
+        Loan loan = new Loan();
+        loan.setAccount(account);
+        loan.setAmount(dto.getAmount());
+        loan.setQuotas(dto.getQuotas());
+        loan.setInterestRate(interestRate);
+        loan.setTotalToPay(totalToPay);
+        loan.setAmountQuota(quotaAmount);
+
+        return loan;
     }
 }

@@ -12,4 +12,6 @@ public class NotificationRequestDto {
 
     @NotBlank(message = "type notification is required")
     private String typeNotification;
+
+    private String userId;
 }

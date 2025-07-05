@@ -16,4 +16,10 @@ public class TransactionRequestDto {
 
     @NotBlank(message = "Type transaction is required")
     private String typeTransaction;
+
+    private String reason;
+
+    private Long accountDestinyId;
+
+    private Long accountOriginId;
 }

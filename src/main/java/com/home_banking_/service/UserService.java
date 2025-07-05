@@ -1,5 +1,7 @@
 package com.home_banking_.service;
 
+import com.home_banking_.dto.RequestDto.UserRequestDto;
+import com.home_banking_.dto.ResponseDto.UserResponseDto;
 import com.home_banking_.model.Users;
 
 import java.util.List;
@@ -7,15 +9,15 @@ import java.util.List;
 
 public interface UserService {
 
-    Users findById(Long id);
+    UserResponseDto findById(Long id);
 
-    Users findByEmail(String email);
+    UserResponseDto findByEmail(String email);
 
-    Users createUser(Users user);
+    UserResponseDto createUser(UserRequestDto dto);
 
-    List<Users> findAll();
+    List<UserResponseDto> findAll();
 
-    Users save(Long id , Users users);
+    UserResponseDto save(Long id , UserRequestDto dto);
 
     void deleteById(Long id);
 }

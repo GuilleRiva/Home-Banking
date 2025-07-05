@@ -1,5 +1,7 @@
 package com.home_banking_.service;
 
+import com.home_banking_.dto.RequestDto.LoanRequestDto;
+import com.home_banking_.dto.ResponseDto.LoanResponseDto;
 import com.home_banking_.model.Loan;
 
 import java.math.BigDecimal;
@@ -7,9 +9,10 @@ import java.util.Optional;
 
 public interface LoanService {
 
-    Loan simulateLoans(BigDecimal amount, int quotas, BigDecimal interestRate);
+    LoanResponseDto simulateLoans(LoanRequestDto dto);
 
-    Loan grantLoan (Long amountId, BigDecimal amount, int quotas, BigDecimal interestRate);
+    LoanResponseDto grantLoan (LoanRequestDto dto);
 
-    Optional<Loan> getLoanByAccount(Long accountId);
+    Optional<LoanResponseDto> getLoanByAccount(Long accountId);
+    
 }

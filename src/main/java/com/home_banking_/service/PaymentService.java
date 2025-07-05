@@ -1,17 +1,17 @@
 package com.home_banking_.service;
 
+import com.home_banking_.dto.RequestDto.PaymentRequestDto;
+import com.home_banking_.dto.ResponseDto.PaymentResponseDto;
 import com.home_banking_.enums.ServiceEntity;
-import com.home_banking_.model.Account;
 import com.home_banking_.model.Payment;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 public interface PaymentService {
 
-    Payment makePayment(Long accountId, BigDecimal amount, ServiceEntity serviceEntity, String description);
+    PaymentResponseDto makePayment(PaymentRequestDto dto);
 
-    List<Payment> getPaymentByAccount (Long accountId);
+    List<PaymentResponseDto> getPaymentByAccount (Long accountId);
 
-    List<Payment> getPaymentByEntity(ServiceEntity entity);
+    List<PaymentResponseDto> getPaymentByEntity(ServiceEntity entity);
 }

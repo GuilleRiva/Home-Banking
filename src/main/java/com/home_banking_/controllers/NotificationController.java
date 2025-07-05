@@ -1,7 +1,10 @@
 package com.home_banking_.controllers;
 
+import com.home_banking_.dto.RequestDto.NotificationRequestDto;
+import com.home_banking_.dto.ResponseDto.NotificationResponseDto;
 import com.home_banking_.model.Notification;
 import com.home_banking_.service.NotificationService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.aspectj.weaver.ast.Not;
 import org.springframework.http.HttpStatus;
@@ -18,27 +21,25 @@ public class NotificationController {
     private final NotificationService notificationService;
 
     @PostMapping
-    public ResponseEntity<Notification> createNotification(@RequestParam Long userId,
-                                                           @RequestParam String message,
-                                                           @RequestParam String type){
+    public ResponseEntity<NotificationResponseDto> createNotification(@RequestParam @Valid NotificationRequestDto dto){
 
 
-        Notification created = notificationService.createNotification(userId, message, type);
+        NotificationResponseDto created = notificationService.createNotification(dto);
         return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Notification>> getNotificationByUser(@PathVariable Long userId){
-        List<Notification> notifications = notificationService.getNotificationByUser(userId);
+    public ResponseEntity<List<NotificationResponseDto>> getNotificationByUser(@PathVariable Long userId){
+        List<NotificationResponseDto> notifications = notificationService.getNotificationByUser(userId);
 
         return ResponseEntity.ok(notifications);
     }
 
 
     @GetMapping("/user/{userId}/unread")
-    public ResponseEntity<List<Notification>> getUnReadByUser(@PathVariable Long userId){
-        List<Notification> unread = notificationService.getUnreadByUser(userId);
+    public ResponseEntity<List<NotificationResponseDto>> getUnReadByUser(@PathVariable Long userId){
+        List<NotificationResponseDto> unread = notificationService.getUnreadByUser(userId);
 
         return ResponseEntity.ok(unread);
     }
@@ -53,8 +54,8 @@ public class NotificationController {
 
 
     @PostMapping("/simulate/{userId}")
-    public ResponseEntity<List<Notification>>simulateNotifications(@PathVariable Long userId){
-        List<Notification> list = notificationService.createNotificationByUser(userId);
+    public ResponseEntity<List<NotificationResponseDto>>simulateNotifications(@PathVariable Long userId){
+        List<NotificationResponseDto> list = notificationService.createNotificationByUser(userId);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(list);
     }

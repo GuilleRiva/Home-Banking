@@ -1,5 +1,6 @@
 package com.home_banking_.controllers;
 
+import com.home_banking_.dto.ResponseDto.CardResponseDto;
 import com.home_banking_.enums.TypeCard;
 import com.home_banking_.model.Card;
 import com.home_banking_.service.CardService;
@@ -19,16 +20,16 @@ public class CardController {
 
 
     @GetMapping("/card/{accountId}")
-    public ResponseEntity<List<Card>> getCardByAccount(Long accountId){
-        List<Card> cards = cardService.getCardByAccount(accountId);
+    public ResponseEntity<List<CardResponseDto>> getCardByAccount(Long accountId){
+        List<CardResponseDto> cards = cardService.getCardByAccount(accountId);
         return ResponseEntity.ok(cards);
 
     }
 
 
     @PostMapping
-    public ResponseEntity<Card> createCard(@RequestBody Long accountId, TypeCard typeCard, String mark){
-        Card created = cardService.createCard(accountId, typeCard, mark);
+    public ResponseEntity<CardResponseDto> createCard(@RequestBody Long accountId, TypeCard typeCard, String mark){
+        CardResponseDto created = cardService.createCard(accountId, typeCard, mark);
 
         return new ResponseEntity<>(created, HttpStatus.CREATED);
 

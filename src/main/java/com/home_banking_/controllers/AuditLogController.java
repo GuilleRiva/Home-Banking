@@ -1,5 +1,6 @@
 package com.home_banking_.controllers;
 
+import com.home_banking_.dto.ResponseDto.AuditLogResponseDto;
 import com.home_banking_.model.AuditLog;
 import com.home_banking_.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
@@ -29,15 +30,15 @@ public class AuditLogController {
 
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<AuditLog>> getLogsByUser(@PathVariable Long userId){
-        List<AuditLog> logs = auditLogService.getLogsByUser(userId);
+    public ResponseEntity<List<AuditLogResponseDto>> getLogsByUser(@PathVariable Long userId){
+        List<AuditLogResponseDto> logs = auditLogService.getLogsByUser(userId);
         return ResponseEntity.ok(logs);
     }
 
 
     @GetMapping("/type/{type}")
-    public ResponseEntity<List<AuditLog>> getLogsByType(@PathVariable String type){
-        List<AuditLog> logs = auditLogService.getLogsByType(type);
+    public ResponseEntity<List<AuditLogResponseDto>> getLogsByType(@PathVariable String type){
+        List<AuditLogResponseDto> logs = auditLogService.getLogsByType(type);
         return ResponseEntity.ok(logs);
     }
 

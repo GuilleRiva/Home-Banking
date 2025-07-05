@@ -1,6 +1,10 @@
 package com.home_banking_.service.impl;
 
+import com.home_banking_.dto.RequestDto.NotificationRequestDto;
+import com.home_banking_.dto.ResponseDto.NotificationResponseDto;
+import com.home_banking_.enums.TypeNotification;
 import com.home_banking_.exceptions.ResourceNotFoundException;
+import com.home_banking_.mappers.NotificationMapper;
 import com.home_banking_.model.Notification;
 import com.home_banking_.model.Users;
 import com.home_banking_.repository.NotificationRepository;
@@ -9,50 +13,94 @@ import com.home_banking_.service.NotificationService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UsersRepository usersRepository;
+    private final NotificationMapper notificationMapper;
 
-    public NotificationServiceImpl(NotificationRepository notificationRepository, UsersRepository usersRepository) {
+    public NotificationServiceImpl(NotificationRepository notificationRepository, UsersRepository usersRepository, NotificationMapper notificationMapper) {
         this.notificationRepository = notificationRepository;
         this.usersRepository = usersRepository;
+        this.notificationMapper = notificationMapper;
     }
 
 
     @Override
-    public Notification createNotification(Long userId, String message, String type) {
+    public NotificationResponseDto createNotification(NotificationRequestDto dto) {
+        Users users = usersRepository.findById(Long.valueOf(dto.getUserId()))
+                .orElseThrow(()-> new ResourceNotFoundException("User not found"));
+
+        Notification notification = notificationMapper.toEntity(dto);
+        notification.setUsers(users);
+        notification.setMessage(dto.getMessage());
+        notification.setShippingDate(LocalDateTime.now());
+        notification.setRead(false);
+        notificationRepository.save(notification);
+
+        return notificationMapper.toDto(notification);
+    }
+
+
+    @Override
+    public List<NotificationResponseDto> createNotificationByUser(Long userId) {
         Users users = usersRepository.findById(userId)
                 .orElseThrow(()-> new ResourceNotFoundException("User not found"));
 
-        Notification notification = new Notification();
-        notification.setUsers(users);
-        notification.setMessage(message);
-        notification.setShippingDate(LocalDateTime.now());
-        notification.setRead(false);
+        List<Notification> notifications = new ArrayList<>();
 
-        return notificationRepository.save(notification);
+        Notification n1 = new Notification();
+        n1.setUsers(users);
+        n1.setMessage("Your loan was approved");
+        n1.setShippingDate(LocalDateTime.now());
+        n1.setRead(false);
+        n1.setTypeNotification(TypeNotification.TRANSACCION_REALIZADA);
+
+        Notification n2 = new Notification();
+        n2.setUsers(users);
+        n2.setMessage("new card available");
+        n2.setShippingDate(LocalDateTime.now());
+        n2.setRead(false);
+        n2.setTypeNotification(TypeNotification.TRANSACCION_REALIZADA);
+
+        notifications.add(n1);
+        notifications.add(n2);
+
+        notificationRepository.saveAll(notifications);
+
+        return notifications.stream()
+                .map(notificationMapper::toDto)
+                .collect(Collectors.toList());
     }
 
 
     @Override
-    public List<Notification> createNotificationByUser(Long userId) {
-        return notificationRepository.findByUsers_IdAndReadFalseOrderByShippingDateDesc(userId);
+    public List<NotificationResponseDto> getNotificationByUser(Long userId) {
+        Users users = usersRepository.findById(userId)
+                .orElseThrow(()-> new ResourceNotFoundException("User not found"));
+
+        List<Notification> notifications = notificationRepository.findByUsers_IdOrderByShippingDateDesc(users.getId());
+        return notifications.stream()
+                .map(notificationMapper::toDto)
+                .collect(Collectors.toList());
     }
 
 
     @Override
-    public List<Notification> getNotificationByUser(Long userId) {
-        return notificationRepository.findByUsers_IdOrderByShippingDateDesc(userId);
-    }
+    public List<NotificationResponseDto> getUnreadByUser(Long userId) {
+        Users users = usersRepository.findById(userId)
+                .orElseThrow(()-> new ResourceNotFoundException("User not found"));
 
-
-    @Override
-    public List<Notification> getUnreadByUser(Long userId) {
-        return notificationRepository.findByUsers_IdAndReadFalseOrderByShippingDateDesc(userId);
+        List<Notification> unread = notificationRepository.findByUsers_IdAndReadFalseOrderByShippingDateDesc(users.getId());
+        return unread.stream()
+                .map(notificationMapper::toDto)
+                .collect(Collectors.toList());
     }
 
 

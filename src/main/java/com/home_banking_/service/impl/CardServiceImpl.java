@@ -1,9 +1,11 @@
 package com.home_banking_.service.impl;
 
+import com.home_banking_.dto.ResponseDto.CardResponseDto;
 import com.home_banking_.enums.StatusCard;
 import com.home_banking_.enums.TypeCard;
 import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.exceptions.ResourceNotFoundException;
+import com.home_banking_.mappers.CardMapper;
 import com.home_banking_.model.Account;
 import com.home_banking_.model.Card;
 import com.home_banking_.repository.AccountRepository;
@@ -20,10 +22,12 @@ public class CardServiceImpl implements CardService {
 
     private final CardRepository cardRepository;
     private final AccountRepository accountRepository;
+    private final CardMapper cardMapper;
 
-    public CardServiceImpl(CardRepository cardRepository, AccountRepository accountRepository) {
+    public CardServiceImpl(CardRepository cardRepository, AccountRepository accountRepository, CardMapper cardMapper) {
         this.cardRepository = cardRepository;
         this.accountRepository = accountRepository;
+        this.cardMapper = cardMapper;
     }
 
 
@@ -39,11 +43,12 @@ public class CardServiceImpl implements CardService {
     }
 
     private String generateCVV(){
-        return String.format("%03d", new Random().nextInt(1000));
+        int cvv = new Random().nextInt(900) + 100;
+        return String.valueOf(cvv);
     }
 
     @Override
-    public Card createCard(Long accountId, TypeCard typeCard, String mark) {
+    public CardResponseDto createCard(Long accountId, TypeCard typeCard, String mark) {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
 
@@ -55,7 +60,8 @@ public class CardServiceImpl implements CardService {
         card.setExpiration(LocalDateTime.now().plusYears(3));
         card.setStatusCard(StatusCard.ACTIVE);
 
-        return cardRepository.save(card);
+        cardRepository.save(card);
+        return cardMapper.toDTO(card);
     }
 
 
@@ -85,7 +91,10 @@ public class CardServiceImpl implements CardService {
 
 
     @Override
-    public List<Card> getCardByAccount(Long accountId) {
-        return cardRepository.findByAccount_Id(accountId);
+    public List<CardResponseDto> getCardByAccount(Long accountId) {
+        List<Card> cards = cardRepository.findByAccount_Id(accountId);
+        return cards.stream()
+                .map(cardMapper::toDTO)
+                .toList();
     }
 }

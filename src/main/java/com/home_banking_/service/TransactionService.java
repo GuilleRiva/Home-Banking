@@ -1,15 +1,15 @@
 package com.home_banking_.service;
 
-import com.home_banking_.model.Transaction;
+import com.home_banking_.dto.RequestDto.TransactionRequestDto;
+import com.home_banking_.dto.ResponseDto.TransactionResponseDto;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 public interface TransactionService {
 
-    Transaction makeTransfer (Long accountOrigenId, Long accountDestinyId, BigDecimal amount, String reason);
+    TransactionResponseDto makeTransfer (TransactionRequestDto dto);
 
-    List<Transaction> getTransactionsByAccount(Long accountId);
+    List<TransactionResponseDto> getTransactionsByAccount(Long accountId);
 
-    List<Transaction> getTransactionsByUser(Long userId);
+    List<TransactionResponseDto> getTransactionsByUser(Long userId);
 }
