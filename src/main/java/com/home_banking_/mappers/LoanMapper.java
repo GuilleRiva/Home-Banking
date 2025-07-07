@@ -11,7 +11,7 @@ import org.mapstruct.Named;
 @Mapper(componentModel = "spring")
 public interface LoanMapper {
 
-    @Mapping(target = "statusLoan", source = "statusLoan", qualifiedByName = "enumToString")
+    @Mapping(target = "statusLoan", source = "statusLoan", qualifiedByName = "statusLoanToString")
     LoanResponseDto toDto(Loan loan);
 
     @Mapping(target = "id", ignore = true)
@@ -20,12 +20,13 @@ public interface LoanMapper {
     @Mapping(target = "amountQuota", ignore = true)
     @Mapping(target = "startDate", ignore = true)
     @Mapping(target = "endDate", ignore = true)
+    @Mapping(target = "statusLoan",source = "statusLoan", qualifiedByName = "stringToStatusLoan")
     Loan toEntity(LoanRequestDto dto);
 
 
-    @Named("enumToString")
-    static String enumToString(Enum<?> e){
-        return e != null ? e.name() : null;
+    @Named("statusLoanToString")
+    static String statusLoanToString(StatusLoan value){
+        return value != null ? value.name() : null;
     }
 
     @Named("stringToStatusLoan")

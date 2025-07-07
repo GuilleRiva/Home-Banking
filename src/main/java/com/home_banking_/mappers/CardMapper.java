@@ -12,18 +12,25 @@ import org.mapstruct.Named;
 @Mapper(componentModel = "spring")
 public interface CardMapper {
 
-    @Mapping(source = "statusCard", target = "statusCard", qualifiedByName = "enumToString")
-    @Mapping(source = "typeCard", target = "typeCard", qualifiedByName = "enumToString")
+    @Mapping(source = "statusCard", target = "statusCard", qualifiedByName = "statusCardToString")
+    @Mapping(source = "typeCard", target = "typeCard", qualifiedByName = "typeCardToString")
     CardResponseDto toDTO(Card card);
 
 
     @Mapping(source = "typeCard", target = "typeCard", qualifiedByName = "stringToTypeCard")
+    @Mapping(source = "statusCard", target = "statusCard", qualifiedByName = "stringToStatusCard")
     Card toEntity(CardRequestDto dto);
 
 
-    @Named("enumToString")
-    static String enumToString(Enum<?> e){
-        return  e != null ? e.name() : null;
+    @Named("statusCardToString")
+    static String statusCardToString(StatusCard value){
+        return  value != null ? value.name() : null;
+    }
+
+
+    @Named("typeCardToString")
+    static String typeCardToString(TypeCard value){
+        return value != null ? value.name() : null;
     }
 
 

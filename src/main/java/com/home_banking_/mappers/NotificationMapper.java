@@ -11,7 +11,7 @@ import org.mapstruct.Named;
 @Mapper(componentModel = "spring")
 public interface NotificationMapper {
 
-    @Mapping(target = "typeNotification", source = "typeNotification", qualifiedByName = "enumToString")
+    @Mapping(target = "typeNotification", source = "typeNotification", qualifiedByName = "typeNotificationToString")
     NotificationResponseDto toDto(Notification notification);
 
 
@@ -22,9 +22,9 @@ public interface NotificationMapper {
 
 
 
-    @Named("enumToString")
-    static String enumToString(TypeNotification e){
-        return e != null ? e.name() : null;
+    @Named("typeNotificationToString")
+    static String typeNotificationToString(TypeNotification value){
+        return value != null ? value.name() : null;
     }
 
 

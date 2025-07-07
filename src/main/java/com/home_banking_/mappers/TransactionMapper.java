@@ -15,9 +15,9 @@ import org.mapstruct.Named;
 public interface TransactionMapper {
 
 
-    @Mapping(target = "movementAccount", source = "movementAccount", qualifiedByName = "enumToString")
-    @Mapping(target = "typeTransaction", source = "typeTransaction", qualifiedByName = "enumToString")
-    @Mapping(target = "statusTransaction", source = "statusTransaction", qualifiedByName = "enumToString")
+    @Mapping(target = "movementAccountType", source = "movementAccountType", qualifiedByName = "movementAccountTypeToString")
+    @Mapping(target = "typeTransaction", source = "typeTransaction", qualifiedByName = "typeTransactionToString")
+    @Mapping(target = "statusTransaction", source = "statusTransaction", qualifiedByName = "statusTransactionToString")
     TransactionResponseDto toDto(Transaction dto);
 
 
@@ -27,25 +27,21 @@ public interface TransactionMapper {
     Transaction toEntity(TransactionRequestDto dto);
 
 
-    @Named("enumToString")
-    static String enumToString(Enum<?> e){
+
+    @Name("movementAccountTypeToString")
+    static String movementAccountTypeToString(MovementAccountType e){
         return e != null ? e.name() : null;
     }
 
 
-    @Name("enumToString")
-    static MovementAccountType stringToMovementAccountType(String value){
-        return value != null ? MovementAccountType.valueOf(value) : null;
+    @Named("typeTransactionToString")
+    static String typeTransactionToString(TypeTransaction value){
+        return value != null ? value.name() : null;
     }
 
 
-    @Named("enumToString")
-    static TypeTransaction stringToTypeTransaction(String value){
-        return value != null ? TypeTransaction.valueOf(value) : null;
-    }
-
-    @Named("enumToString")
-    static StatusTransaction stringToStatusTransaction(String value){
-        return value != null ? StatusTransaction.valueOf(value) : null ;
+    @Named("statusTransactionToString")
+    static String statusTransactionToString(StatusTransaction value) {
+        return value != null ? value.name() : null;
     }
 }

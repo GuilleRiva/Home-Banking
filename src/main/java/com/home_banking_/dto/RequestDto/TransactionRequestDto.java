@@ -12,7 +12,7 @@ public class TransactionRequestDto {
     private BigDecimal amount;
 
     @NotBlank(message = "Movement account is required")
-    private String movementAccount;
+    private String movementAccountType;
 
     @NotBlank(message = "Type transaction is required")
     private String typeTransaction;

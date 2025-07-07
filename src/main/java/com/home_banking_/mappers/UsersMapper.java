@@ -11,15 +11,15 @@ import org.mapstruct.Named;
 @Mapper(componentModel = "spring")
 public interface UsersMapper {
 
-    @Mapping(target = "rol", source = "rol", qualifiedByName = "EnumToString")
+    @Mapping(target = "rol", source = "rol", qualifiedByName = "rolToString")
     UserResponseDto toDTO(Users users);
 
     @Mapping(source = "rol", target = "rol", qualifiedByName = "stringToRol")
     Users toEntity(UserRequestDto dto);
 
 
-    @Named("enumToString")
-    static String enumToString(Rol e){
+    @Named("rolToString")
+    static String rolToString(Rol e){
         return e != null ? e.name() : null;
     }
 

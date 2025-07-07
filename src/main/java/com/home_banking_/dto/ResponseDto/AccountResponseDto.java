@@ -1,5 +1,6 @@
 package com.home_banking_.dto.ResponseDto;
 
+import com.home_banking_.model.Account;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

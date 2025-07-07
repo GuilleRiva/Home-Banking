@@ -11,7 +11,7 @@ import org.mapstruct.Named;
 @Mapper(componentModel = "spring")
 public interface AuditLogMapper {
 
-    @Mapping(target = "type", source = "type", qualifiedByName = "enumToString")
+    @Mapping(target = "type", source = "type", qualifiedByName = "typeToString")
     AuditLogResponseDto toDTO(AuditLog auditLog);
 
 
@@ -19,8 +19,8 @@ public interface AuditLogMapper {
     AuditLog toEntity(AuditLogRequestDto dto);
 
 
-    @Named("enumToString")
-    static String enumToString(AuditType e){
+    @Named("typeToString")
+    static String typeToString(AuditType e){
         return e != null ? e.name() : null;
     }
 

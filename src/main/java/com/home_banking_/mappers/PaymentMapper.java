@@ -12,31 +12,41 @@ import org.mapstruct.Named;
 @Mapper(componentModel = "spring")
 public interface PaymentMapper {
 
-    @Mapping(source = "serviceEntity", target = "serviceEntity", qualifiedByName = "enumToString")
-    @Mapping(source = "statusPayment", target = "statusPayment", qualifiedByName = "enumToString")
+    @Mapping(source = "serviceEntity", target = "serviceEntity", qualifiedByName = "serviceEntityToString")
+    @Mapping(source = "statusPayment", target = "statusPayment", qualifiedByName = "statusPaymentToString")
     PaymentResponseDto toDto(Payment payment);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "amount", ignore = true)
     @Mapping(target = "paymentDate", ignore = true)
+    @Mapping(source = "statusPayment", target = "statusPayment", qualifiedByName = "stringToStatusPayment")
+    @Mapping(source = "serviceEntity", target = "serviceEntity", qualifiedByName = "stringToServiceEntity")
     Payment toEntity(PaymentRequestDto dto);
 
 
 
-    @Named("enumToString")
-    static String enumToString(Enum<?> e){
-        return e != null ? e.name() : null;
+    @Named("serviceEntityToString")
+    static String serviceEntityToString(ServiceEntity value){
+        return value != null ? value.name() : null;
     }
 
 
-    @Named("enumToString")
+    @Named("statusPaymentToString")
+    static String statusPaymentToString(StatusPayment value){
+        return value != null ? value.name() : null;
+    }
+
+
+    @Named("stringToStatusPayment")
     static StatusPayment stringToStatusPayment(String value){
         return value != null ? StatusPayment.valueOf(value) : null;
     }
 
 
-    @Named("enumToString")
+    @Named("stringToServiceEntity")
     static ServiceEntity stringToServiceEntity(String value){
-        return value != null ? ServiceEntity.valueOf(value) : null ;
+        return value != null ? ServiceEntity.valueOf(value) : null;
     }
+
+
 }

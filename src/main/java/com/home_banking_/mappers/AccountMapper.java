@@ -13,8 +13,8 @@ import org.mapstruct.Named;
 public interface AccountMapper {
 
     //Mapper entity - Dto response
-    @Mapping(target = "typeAccount", source = "typeAccount", qualifiedByName = "enumToString")
-    @Mapping(source = "statusAccount", target = "statusAccount", qualifiedByName = "enumToString")
+    @Mapping(target = "typeAccount", source = "typeAccount", qualifiedByName = "typeAccountToString")
+    @Mapping(source = "statusAccount", target = "statusAccount", qualifiedByName = "statusAccountToString")
     AccountResponseDto toDto(Account account);
 
 
@@ -27,9 +27,14 @@ public interface AccountMapper {
     Account toEntity(AccountRequestDto dto);
 
     //convert Enum -> String
-    @Named("enumToString")
-    static String enumToString(Enum<?> e){
-        return e != null ? e.name() : null;
+    @Named("typeAccountToString")
+    static String typeAccountToString(TypeAccount value){
+        return value != null ? value.name() : null;
+    }
+
+    @Named("statusAccountToString")
+    static String statusAccountToString(StatusAccount value){
+        return value != null ? value.name() : null;
     }
 
     //convert String -> Enum TypeAccount

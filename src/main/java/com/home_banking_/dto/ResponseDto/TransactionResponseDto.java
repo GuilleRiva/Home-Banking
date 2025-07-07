@@ -15,7 +15,7 @@ public class TransactionResponseDto {
     private Long id;
     private BigDecimal amount;
     private LocalDateTime creationDate;
-    private String movementAccount;
+    private String movementAccountType;
     private String typeTransaction;
     private String statusTransaction;
 }

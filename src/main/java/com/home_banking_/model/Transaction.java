@@ -19,7 +19,7 @@ public class Transaction {
     private LocalDateTime creationDate;
 
     @Enumerated(EnumType.STRING)
-    private MovementAccountType movementAccount;
+    private MovementAccountType movementAccountType;
 
     @Enumerated(EnumType.STRING)
     private StatusTransaction statusTransaction;

@@ -9,6 +9,8 @@ public class PaymentRequestDto {
 
     private BigDecimal amount;
     private String serviceEntity;
+    private String statusPayment;
     private String description;
     private Long accountId;
+
 }

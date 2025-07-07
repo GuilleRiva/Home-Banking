@@ -18,4 +18,5 @@ public class PaymentResponseDto {
     private LocalDateTime paymentDate;
     private String serviceEntity;
     private String statusPayment;
+    private String movementAccount;
 }
