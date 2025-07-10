@@ -116,7 +116,7 @@ public class UsersControllers {
     public ResponseEntity<Void> deleteUser(
             @Parameter(name = "userId", description = "Unique identifier of the user", required = true)
             @PathVariable Long userId){
-        
+
         userService.deleteById(userId);
         return ResponseEntity.noContent().build();
     }
