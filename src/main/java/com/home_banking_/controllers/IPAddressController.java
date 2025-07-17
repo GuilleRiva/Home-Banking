@@ -2,9 +2,9 @@ package com.home_banking_.controllers;
 
 import com.home_banking_.dto.ResponseDto.IPAddressResponseDto;
 import com.home_banking_.exceptions.ResourceNotFoundException;
-import com.home_banking_.model.IPAddress;
 import com.home_banking_.model.Users;
 import com.home_banking_.repository.UsersRepository;
+import com.home_banking_.service.IPAddressService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -24,7 +24,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/IPAddress")
 @RequiredArgsConstructor
-public class IPAddressService {
+public class IPAddressController {
 
     private final IPAddressService ipAddressService;
     private final UsersRepository usersRepository;
@@ -45,7 +45,12 @@ public class IPAddressService {
     public ResponseEntity<IPAddressResponseDto>registerIP(@RequestParam Long userId,
                                                           @RequestParam String ip){
 
-        IPAddressResponseDto registeredIP = ipAddressService.registerIP(userId, ip).getBody();
+
+        IPAddressResponseDto dto = new IPAddressResponseDto();
+        dto.setId(userId);
+        dto.setDirectionIP(ip);
+
+        IPAddressResponseDto registeredIP = ipAddressService.registerIP(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(registeredIP);
     }
 
@@ -82,8 +87,9 @@ public class IPAddressService {
             schema = @Schema(type = "boolean", example = "true")))
     )
     @GetMapping("/check")
-    public ResponseEntity<ResponseEntity<Boolean>> isSuspicious(@RequestParam String ip){
-        return ResponseEntity.ok(ipAddressService.isSuspicious(ip).getBody());
+    public ResponseEntity<Boolean> isSuspicious(@RequestParam String ip){
+        boolean result = ipAddressService.isSuspicious(ip);
+        return ResponseEntity.ok(result);
     }
 
 
@@ -107,7 +113,7 @@ public class IPAddressService {
         Users users = usersRepository.findById(userId)
                 .orElseThrow(()-> new ResourceNotFoundException("User not found"));
 
-        List<IPAddressResponseDto> ipList = ipAddressService.getIPsByUser(users.getId()).getBody();
+        List<IPAddressResponseDto> ipList = ipAddressService.getIPsByUser(userId);
         return ResponseEntity.ok(ipList);
 
     }

@@ -15,7 +15,7 @@ import org.mapstruct.Named;
 public interface TransactionMapper {
 
 
-    @Mapping(target = "movementAccountType", source = "movementAccountType", qualifiedByName = "movementAccountTypeToString")
+  /*  @Mapping(target = "movementAccountType", source = "movementAccountType", qualifiedByName = "movementAccountTypeToString")*/
     @Mapping(target = "typeTransaction", source = "typeTransaction", qualifiedByName = "typeTransactionToString")
     @Mapping(target = "statusTransaction", source = "statusTransaction", qualifiedByName = "statusTransactionToString")
     TransactionResponseDto toDto(Transaction dto);
@@ -28,10 +28,10 @@ public interface TransactionMapper {
 
 
 
-    @Name("movementAccountTypeToString")
+   /* @Name("movementAccountTypeToString")
     static String movementAccountTypeToString(MovementAccountType e){
         return e != null ? e.name() : null;
-    }
+    }*/
 
 
     @Named("typeTransactionToString")

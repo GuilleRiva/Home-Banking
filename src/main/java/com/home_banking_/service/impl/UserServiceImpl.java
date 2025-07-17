@@ -10,7 +10,6 @@ import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.stereotype.Service;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -68,7 +67,8 @@ public class UserServiceImpl implements UserService {
         existingUser.setSurname(dto.getSurname());
         existingUser.setEmail(dto.getEmail());
         existingUser.setPassword(dto.getPassword());
-        existingUser.setRol(Rol.valueOf(dto.getRol()));
+        existingUser.setRol(Rol.valueOf(String.valueOf(dto
+                .getRol())));
 
         Users updateUser = usersRepository.save(existingUser);
         return usersMapper.toDTO(updateUser);

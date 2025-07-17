@@ -1,15 +1,13 @@
 package com.home_banking_.service;
 
-import com.home_banking_.dto.RequestDto.IPAddressRequestDto;
 import com.home_banking_.dto.ResponseDto.IPAddressResponseDto;
-import com.home_banking_.model.IPAddress;
-import com.home_banking_.model.Users;
+
 
 import java.util.List;
 
 public interface IPAddressService {
 
-    IPAddressResponseDto registerIP(IPAddressRequestDto dto);
+    IPAddressResponseDto registerIP(IPAddressResponseDto dto);
 
     void makeAsSuspicious (Long ipId);
 
@@ -18,4 +16,5 @@ public interface IPAddressService {
     List<IPAddressResponseDto> getIPsByUser(Long userId);
 
     void deleteIP(Long ipId);
+
 }

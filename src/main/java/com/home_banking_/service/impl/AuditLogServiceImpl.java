@@ -1,6 +1,5 @@
 package com.home_banking_.service.impl;
 
-import com.home_banking_.dto.RequestDto.AuditLogRequestDto;
 import com.home_banking_.dto.ResponseDto.AuditLogResponseDto;
 import com.home_banking_.enums.AuditType;
 import com.home_banking_.exceptions.BusinessException;
@@ -30,7 +29,7 @@ public class AuditLogServiceImpl implements AuditLogService {
     }
 
 
-    @Override
+   @Override
     public void registerEvent(Long userId, String message, String typeEvent, String type) {
         //Buscar el usuario que generó el evento
         Users users = usersRepository.findById(userId)
@@ -58,6 +57,7 @@ public class AuditLogServiceImpl implements AuditLogService {
 
     @Override
     public List<AuditLogResponseDto> getLogsByUser(Long user_id) {
+
         List<AuditLog> logs = auditLogRepository.findByUsers_IdOrderByDateTimeDesc(user_id);
         return logs.stream()
                 .map(auditLogMapper::toDTO)
@@ -68,8 +68,9 @@ public class AuditLogServiceImpl implements AuditLogService {
 
     @Override
     public List<AuditLogResponseDto> getLogsByType(String type) {
+
         AuditType auditType = AuditType.valueOf(type.toUpperCase());
-        List<AuditLog> logs = auditLogRepository.findAllByOrderByDateTimeDesc(auditType);
+        List<AuditLog> logs = auditLogRepository.findByTypeOrderByDateTimeDesc(auditType);
         return  logs.stream()
                 .map(auditLogMapper::toDTO)
                 .toList();
