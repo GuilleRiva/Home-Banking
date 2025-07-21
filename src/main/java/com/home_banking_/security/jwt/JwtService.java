@@ -1,9 +1,13 @@
 package com.home_banking_.security.jwt;
 
+import com.home_banking_.model.Users;
+import com.home_banking_.security.user.UserDetailsImpl;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -16,8 +20,14 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
+    @Value("${application.security.jwt.secret-key}")
     private final String SECRET_KEY = "supersecretosegurobitparabancoseguro";
+
+    @Value("${application.security.jwt.expiration}")
     private final long EXPIRATION_TIME = 1000 * 60 * 15;
+
+    @Value("${application.security.jwt.refresh-token.expiration}")
+    private Long refreshExpiration;
 
     public String extractUsername (String token) {
         return extractClaim(token, Claims::getSubject); // getSubject = email
@@ -69,6 +79,28 @@ public class JwtService {
     }
 
     private Key getSigningKey(){
-        return Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
+        byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+
+    public String generateRefreshToken (Users user){
+        return Jwts.builder()
+                .setSubject(user.getEmail())
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + refreshExpiration))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+
+    public String generateToken (Users user){
+        UserDetails userDetails = new UserDetailsImpl(user);
+
+        return generateToken(userDetails);
+    }
+
+    public boolean isTokenValid (String token) {
+        return !isTokenExpired(token);
     }
 }

@@ -9,7 +9,7 @@ import java.util.List;
 @Repository
 public interface IPAddressRepository extends JpaRepository<IPAddress, Long> {
 
-    List<IPAddress> findByUsers(Long users);
+    List<IPAddress> findByUsers_Id(Long userId);
 
     boolean existsByDirectionIPAndSuspiciousTrue(String ip);
 }

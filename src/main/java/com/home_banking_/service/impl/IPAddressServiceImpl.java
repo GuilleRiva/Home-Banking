@@ -65,7 +65,7 @@ public class IPAddressServiceImpl implements IPAddressService {
     @Override
     public List<IPAddressResponseDto> getIPsByUser(Long userId) {
 
-        return ipAddressRepository.findByUsers(userId)
+        return ipAddressRepository.findByUsers_Id(userId)
                 .stream()
                 .map(ipAddressMapper::toDTO)
                 .toList();
