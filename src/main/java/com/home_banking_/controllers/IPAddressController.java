@@ -1,5 +1,6 @@
 package com.home_banking_.controllers;
 
+import com.home_banking_.dto.RequestDto.IPAddressRequestDto;
 import com.home_banking_.dto.ResponseDto.IPAddressResponseDto;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.model.Users;
@@ -42,13 +43,8 @@ public class IPAddressController {
             @ApiResponse(responseCode = "400", description = "Invalid request data.")
     })
     @PostMapping("/register")
-    public ResponseEntity<IPAddressResponseDto>registerIP(@RequestParam Long userId,
-                                                          @RequestParam String ip){
+    public ResponseEntity<IPAddressResponseDto>registerIP(@RequestBody IPAddressRequestDto dto){
 
-
-        IPAddressResponseDto dto = new IPAddressResponseDto();
-        dto.setId(userId);
-        dto.setDirectionIP(ip);
 
         IPAddressResponseDto registeredIP = ipAddressService.registerIP(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(registeredIP);

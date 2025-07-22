@@ -1,5 +1,6 @@
 package com.home_banking_.security.auth;
 
+import com.home_banking_.dto.auth.ChangePasswordRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -7,6 +8,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -52,4 +55,20 @@ public class AuthController {
         authService.logout(token);
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/change-password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> changePassword (@RequestBody @Valid ChangePasswordRequest request,
+                                                HttpServletRequest httpRequest) {
+
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        String ip = httpRequest.getRemoteAddr();
+
+        authService.changePassword(request, email, ip);
+
+        return  ResponseEntity.ok().build();
+
+    }
+
+
 }

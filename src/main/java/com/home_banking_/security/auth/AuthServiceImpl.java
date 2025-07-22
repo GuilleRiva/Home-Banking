@@ -1,6 +1,7 @@
 package com.home_banking_.security.auth;
 
 import com.home_banking_.dto.RequestDto.IPAddressRequestDto;
+import com.home_banking_.dto.auth.ChangePasswordRequest;
 import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.model.Users;
@@ -9,6 +10,7 @@ import com.home_banking_.security.jwt.JwtService;
 import com.home_banking_.security.token.Token;
 import com.home_banking_.security.token.TokenRepository;
 import com.home_banking_.security.token.TokenType;
+import com.home_banking_.security.user.UserDetailsImpl;
 import com.home_banking_.service.AuditLogService;
 import com.home_banking_.service.GeoLocationService;
 import com.home_banking_.service.IPAddressService;
@@ -34,8 +36,6 @@ public class AuthServiceImpl implements AuthService{
     private final AuthenticationManager authenticationManager;
     private final AuditLogService auditLogService;
     private final IPAddressService ipAddressService;
-    private final IPAddressRequestDto ipAddressRequestDto;
-    private final UserDetails userDetails;
     private final GeoLocationService geoLocationService;
 
     @Override
@@ -108,7 +108,7 @@ public class AuthServiceImpl implements AuthService{
 
 
         // Generar tokens
-        String accessToken = jwtService.generateToken((UserDetails) user);
+        String accessToken = jwtService.generateToken(new UserDetailsImpl(user));
         String refreshToken = jwtService.generateRefreshToken(user);
 
         //revocar tokens previos
@@ -165,6 +165,34 @@ public class AuthServiceImpl implements AuthService{
 
 
 
+    @Override
+    public void changePassword(ChangePasswordRequest request, String userEmail, String ipAddress) {
+        Users user = usersRepository.findByEmail(userEmail)
+                .orElseThrow(()-> new UsernameNotFoundException("User not found"));
+
+        //Verificar que la contraseña actual sea correcta
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            auditLogService.registerEvent(user.getId(),
+                    "Failed attempt to change password from IP: " + ipAddress,
+                    "PASSWORD_CHANGE_FAILED", "SECURITY");
+            throw new BusinessException("Current password is incorrect");
+        }
+
+        //cambiar contraseña
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        usersRepository.save(user);
+
+        //revocar tokens previos
+        revokeAllUserTokens(user);
+
+        String location = geoLocationService.getLocationFromIP(ipAddress);
+        auditLogService.registerEvent(user.getId(),
+                "Password change successful from IP:" + ipAddress + "(" + location + ")",
+                "PASSWORD_CHANGED", "SECURITY");
+    }
+
+
+
     private void logoutRawToken(String token){
         Token storedToken = tokenRepository.findByToken(token)
                 .orElseThrow(()-> new ResourceNotFoundException("Token not found"));
@@ -173,6 +201,7 @@ public class AuthServiceImpl implements AuthService{
         storedToken.setExpired(true);
         tokenRepository.save(storedToken);
     }
+
 
 
 
@@ -189,9 +218,9 @@ public class AuthServiceImpl implements AuthService{
         tokenRepository.saveAll(validTokens);
     }
 
-    @Scheduled(cron = "0 0 * * *") // cada hora
+    @Scheduled(cron = "0 0 * * * *") // cada hora
     public void cleanOldTokens(){
-        List<Token> oldTokens = tokenRepository.findRevokedOrExpired();
+        List<Token> oldTokens = tokenRepository.findByRevokedTrueOrExpiredTrue();
         if (!oldTokens.isEmpty()) {
             tokenRepository.deleteAll(oldTokens);
         }

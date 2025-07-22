@@ -5,5 +5,6 @@ public enum AuditType {
     LOGIN_BLOCKED,
     TRANSFER,
     PAY,
-    ERROR
+    ERROR,
+    AUTH
 }

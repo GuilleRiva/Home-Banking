@@ -13,6 +13,5 @@ public interface TokenRepository extends JpaRepository<Token, Long> {
 
     Optional<Token> findByToken(String token);
 
-    @Query("SELECT t FROM token t WHERE t.expired = true OR t.revoked = true")
-    List<Token> findRevokedOrExpired ();
+    List<Token> findByRevokedTrueOrExpiredTrue ();
 }
