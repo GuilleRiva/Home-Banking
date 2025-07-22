@@ -4,9 +4,9 @@ public interface AuthService {
 
     AuthResponse register (RegisterRequest request);
 
-    AuthResponse login (AuthRequest request);
+    AuthResponse login (AuthRequest request, String ipAddress);
 
     AuthResponse refreshToken (String refreshToken);
 
-    void logout (String token);
+    void logout (String bearerToken);
 }

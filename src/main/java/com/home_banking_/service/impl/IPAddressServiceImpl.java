@@ -1,5 +1,6 @@
 package com.home_banking_.service.impl;
 
+import com.home_banking_.dto.RequestDto.IPAddressRequestDto;
 import com.home_banking_.dto.ResponseDto.IPAddressResponseDto;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.mappers.IPAddressMapper;
@@ -31,10 +32,11 @@ public class IPAddressServiceImpl implements IPAddressService {
 
 
     @Override
-    public IPAddressResponseDto registerIP(IPAddressResponseDto dto) {
+    public IPAddressResponseDto registerIP(IPAddressRequestDto dto) {
 
         Users users= usersRepository.findById(Long.valueOf(dto.getId()))
                 .orElseThrow(()-> new ResourceNotFoundException("user not found"));
+
 
         IPAddress ipAddress = ipAddressMapper.toEntity(dto);
         ipAddress.setDirectionIP(dto.getDirectionIP());

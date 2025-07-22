@@ -3,6 +3,7 @@ package com.home_banking_.security.config;
 import com.home_banking_.security.jwt.JwtAuthenticationFilter;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +41,8 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/v3/api-docs/**"
+                                "/v3/api-docs/**",
+                                "/error"
                                 ).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
@@ -59,12 +61,17 @@ public class SecurityConfig {
     @Bean
     public OpenAPI customOpenAPI(){
         return new OpenAPI()
+                .info(new Info()
+                        .title("Home Banking API")
+                        .version("1.0")
+                        .description("This is an API that will simulate all the operations of a real home banking system."))
                 .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .components(new Components().addSecuritySchemes("bearerAuth",
                         new SecurityScheme()
                                 .type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer")
                                 .bearerFormat("JWT")));
+
     }
 
 

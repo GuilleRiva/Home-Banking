@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
+import javax.crypto.SecretKey;
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
@@ -20,8 +21,12 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
-    @Value("${application.security.jwt.secret-key}")
-    private final String SECRET_KEY = "supersecretosegurobitparabancoseguro";
+    @Value("${jwt.secret}")
+    private String secret;
+
+    private SecretKey getSecretKey() {
+        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
+    }
 
     @Value("${application.security.jwt.expiration}")
     private final long EXPIRATION_TIME = 1000 * 60 * 15;
@@ -79,7 +84,7 @@ public class JwtService {
     }
 
     private Key getSigningKey(){
-        byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
+        byte[] keyBytes = Decoders.BASE64.decode(secret);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 

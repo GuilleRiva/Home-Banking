@@ -1,5 +1,6 @@
 package com.home_banking_.security.auth;
 
+import com.home_banking_.dto.RequestDto.IPAddressRequestDto;
 import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.model.Users;
@@ -8,7 +9,11 @@ import com.home_banking_.security.jwt.JwtService;
 import com.home_banking_.security.token.Token;
 import com.home_banking_.security.token.TokenRepository;
 import com.home_banking_.security.token.TokenType;
+import com.home_banking_.service.AuditLogService;
+import com.home_banking_.service.GeoLocationService;
+import com.home_banking_.service.IPAddressService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -27,6 +32,11 @@ public class AuthServiceImpl implements AuthService{
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final AuditLogService auditLogService;
+    private final IPAddressService ipAddressService;
+    private final IPAddressRequestDto ipAddressRequestDto;
+    private final UserDetails userDetails;
+    private final GeoLocationService geoLocationService;
 
     @Override
     public AuthResponse register(RegisterRequest request) {
@@ -47,6 +57,7 @@ public class AuthServiceImpl implements AuthService{
         return new AuthResponse(accessToken, refreshToken, "BEARER");
     }
 
+
     private void savedUserToken(Users users, String token) {
         Token t = Token.builder()
                 .user(users)
@@ -60,9 +71,10 @@ public class AuthServiceImpl implements AuthService{
 
 
 
-
     @Override
-    public AuthResponse login(AuthRequest request) {
+    public AuthResponse login(AuthRequest request, String ipAddress) {
+
+        //Autentica con AuthenticationManager
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getEmail(),
@@ -70,15 +82,49 @@ public class AuthServiceImpl implements AuthService{
                 )
         );
 
+        // Buscar usuario original (si necesito guardar el token vinculado al users )
         Users user = usersRepository.findByEmail(request.getEmail())
                 .orElseThrow(()-> new UsernameNotFoundException("User not found"));
 
+
+        // Verifico si la IP es sospechosa
+        boolean isSuspicious = ipAddressService.isSuspicious(ipAddress);
+
+
+        if (isSuspicious) {
+            auditLogService.registerEvent(user.getId(),
+                    "Login attempt from suspicios IP:" + ipAddress,
+                    "LOGIN_BLOCKED", "AUTH");
+
+            throw new BusinessException("This IP is marked as suspicious. Access denied.");
+
+        }
+
+        //Registro la IP en base de datos
+        IPAddressRequestDto dto = new IPAddressRequestDto();
+        dto.setId(String.valueOf(user.getId()));
+        dto.setDirectionIP(ipAddress);
+        ipAddressService.registerIP(dto);
+
+
+        // Generar tokens
         String accessToken = jwtService.generateToken((UserDetails) user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
-
+        //revocar tokens previos
         revokeAllUserTokens(user);
         savedUserToken(user, accessToken);
+
+
+        String location = geoLocationService.getLocationFromIP(ipAddress);
+
+
+        auditLogService.registerEvent(
+                user.getId(),
+                "Successful login from IP: " + ipAddress + "(" + location +")",
+                "LOGIN_SUCCESS",
+                "AUTH");
+
 
         return new AuthResponse(accessToken, refreshToken, "Bearer");
     }
@@ -103,21 +149,37 @@ public class AuthServiceImpl implements AuthService{
         return new AuthResponse(newAccessToken, refreshToken, "Bearer");
     }
 
-    @Override
-    public void logout(String token) {
 
+
+    @Override
+    public void logout(String bearerToken) {
+
+        if (bearerToken == null || !bearerToken.startsWith("Bearer")){
+            throw new BusinessException("Invalid token format");
+        }
+
+        String token = bearerToken.substring(7);
+
+        logoutRawToken(token);
+    }
+
+
+
+    private void logoutRawToken(String token){
         Token storedToken = tokenRepository.findByToken(token)
                 .orElseThrow(()-> new ResourceNotFoundException("Token not found"));
 
         storedToken.setRevoked(true);
         storedToken.setExpired(true);
         tokenRepository.save(storedToken);
-
     }
+
 
 
     private void revokeAllUserTokens (Users user){
         List<Token> validTokens = tokenRepository.findByUser_IdAndExpiredFalseAndRevokedFalse(user.getId());
+
+        if (validTokens.isEmpty()) return;
 
         validTokens.forEach(t -> {
             t.setRevoked(true);
@@ -125,5 +187,13 @@ public class AuthServiceImpl implements AuthService{
         });
 
         tokenRepository.saveAll(validTokens);
+    }
+
+    @Scheduled(cron = "0 0 * * *") // cada hora
+    public void cleanOldTokens(){
+        List<Token> oldTokens = tokenRepository.findRevokedOrExpired();
+        if (!oldTokens.isEmpty()) {
+            tokenRepository.deleteAll(oldTokens);
+        }
     }
 }

@@ -5,11 +5,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 @Schema(description = "DTO used to register or handle IP address information in the system.")
 public class IPAddressRequestDto {
 
@@ -24,6 +26,7 @@ public class IPAddressRequestDto {
     @Schema(description = "Registration date of the IP address in ISO format", example = "2025-07-08T14:35:00")
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime registrationDate;
+
 
 
 }

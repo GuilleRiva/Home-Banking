@@ -17,6 +17,7 @@ public class AuditLog {
     private String description;
     private LocalDateTime dateTime;
     private String ipOrigin;
+    private String location;
 
     @Enumerated(EnumType.STRING)
     private AuditType type;

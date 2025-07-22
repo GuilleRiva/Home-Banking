@@ -1,5 +1,6 @@
 package com.home_banking_.service;
 
+import com.home_banking_.dto.RequestDto.IPAddressRequestDto;
 import com.home_banking_.dto.ResponseDto.IPAddressResponseDto;
 
 
@@ -7,7 +8,7 @@ import java.util.List;
 
 public interface IPAddressService {
 
-    IPAddressResponseDto registerIP(IPAddressResponseDto dto);
+    IPAddressResponseDto registerIP(IPAddressRequestDto dto);
 
     void makeAsSuspicious (Long ipId);
 
