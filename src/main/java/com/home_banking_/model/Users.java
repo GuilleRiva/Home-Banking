@@ -25,6 +25,10 @@ public class Users {
     private String DNI;
     private LocalDateTime registrationDate;
 
+    private int failedLoginAttempts;
+    private boolean accountLocked;
+    protected LocalDateTime lockTime;
+
     @Enumerated(EnumType.STRING)
     private Rol rol;
 

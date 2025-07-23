@@ -1,5 +1,6 @@
 package com.home_banking_.security.auth;
 
+import com.home_banking_.dto.RequestDto.AuditLogRequestDto;
 import com.home_banking_.dto.RequestDto.IPAddressRequestDto;
 import com.home_banking_.dto.auth.ChangePasswordRequest;
 import com.home_banking_.exceptions.BusinessException;
@@ -17,12 +18,15 @@ import com.home_banking_.service.IPAddressService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -74,17 +78,60 @@ public class AuthServiceImpl implements AuthService{
     @Override
     public AuthResponse login(AuthRequest request, String ipAddress) {
 
-        //Autentica con AuthenticationManager
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()
-                )
-        );
 
-        // Buscar usuario original (si necesito guardar el token vinculado al users )
         Users user = usersRepository.findByEmail(request.getEmail())
                 .orElseThrow(()-> new UsernameNotFoundException("User not found"));
+
+        // Verificar que la cuenta esté bloqueada:
+        if (user.isAccountLocked()) {
+            if (Duration.between(user.getLockTime(), LocalDateTime.now()).toMinutes() < 15) {
+                throw new BusinessException("Blocked account. Try later.");
+            }else {
+                // Desbloqueo automatico
+                user.setAccountLocked(false);
+                user.setFailedLoginAttempts(0);
+                usersRepository.save(user);
+            }
+        }
+
+
+        //Autentica con AuthenticationManager
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getEmail(),
+                            request.getPassword()
+                    )
+            );
+        } catch (BadCredentialsException e) {
+            // falló: sumar intento
+            int attempts = user.getFailedLoginAttempts() + 1;
+            user.setFailedLoginAttempts(attempts);
+
+            if (attempts >= 3) {
+                user.setAccountLocked(true);
+                user.setLockTime(LocalDateTime.now());
+            }
+
+            usersRepository.save(user);
+
+            //Registrar intento fallido en AuditLog
+           String message = "Failed login attempt with email:" + request.getEmail()
+                   + " from IP : " + ipAddress;
+
+           auditLogService.registerEvent(
+                   user.getId(),
+                   message,
+                   "LOGIN_FAILED",
+                   "AUTH"
+           );
+
+            throw new BusinessException("Invalids credentials");
+        }
+
+        //Autenticación exitosa: reset contador
+        user.setFailedLoginAttempts(0);
+        usersRepository.save(user);
 
 
         // Verifico si la IP es sospechosa
