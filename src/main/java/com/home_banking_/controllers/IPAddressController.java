@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -43,6 +44,7 @@ public class IPAddressController {
             @ApiResponse(responseCode = "400", description = "Invalid request data.")
     })
     @PostMapping("/register")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<IPAddressResponseDto>registerIP(@RequestBody IPAddressRequestDto dto){
 
 
@@ -62,6 +64,7 @@ public class IPAddressController {
             @ApiResponse(responseCode = "400", description = "Invalid IP ID")
     })
     @PutMapping("/{ipId}/suspicious")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> makeAsSuspicious(
             @Parameter(name = "IpId", description = "Unique identifier of the IP address", required = true)
             @PathVariable Long ipId){
@@ -83,6 +86,7 @@ public class IPAddressController {
             schema = @Schema(type = "boolean", example = "true")))
     )
     @GetMapping("/check")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Boolean> isSuspicious(@RequestParam String ip){
         boolean result = ipAddressService.isSuspicious(ip);
         return ResponseEntity.ok(result);
@@ -102,6 +106,7 @@ public class IPAddressController {
             @ApiResponse(responseCode = "404", description = "User not found")
     })
     @GetMapping("/user/{userId}")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'AUDITOR' )")
     public ResponseEntity<List<IPAddressResponseDto>> getIPsByUser(
             @Parameter(name = "userID", description = "Unique identifier of the user", required = true)
             @PathVariable Long userId){

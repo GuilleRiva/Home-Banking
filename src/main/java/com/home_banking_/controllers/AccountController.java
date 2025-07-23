@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -40,6 +41,7 @@ public class AccountController {
             schema = @Schema(implementation = AccountResponseDto.class)))
     @ApiResponse(responseCode = "404", description = "Accounts not found")
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<AccountResponseDto>> getAll(){
 
         List<AccountResponseDto> accounts = accountService.getAll();
@@ -60,6 +62,7 @@ public class AccountController {
             @ApiResponse(responseCode = "404", description = "User not found")
     })
     @GetMapping("/{accountId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AccountResponseDto>getById(
             @Parameter(name = "accountId", description = "Unique identifier of the account", required = true)
             @PathVariable Long accountId){
@@ -129,6 +132,7 @@ public class AccountController {
             @ApiResponse(responseCode = "404", description = "The accounts were not found")
     })
     @GetMapping("/alias/{alias}")
+    @PreAuthorize("hasRole('ADMIN') or hasRol('EMPLOYED')")
     public ResponseEntity<AccountResponseDto> getAccountByAlias(
             @Parameter(name = "alias", description = "account identifier name", required = true)
             @PathVariable String alias){
@@ -150,6 +154,7 @@ public class AccountController {
             @ApiResponse(responseCode = "404", description = "Account not found")
     })
     @DeleteMapping("/{accountId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteAccount(
             @Parameter(name = "accountId", description = "Unique identifier of the account", required = true)
             @PathVariable Long accountId){

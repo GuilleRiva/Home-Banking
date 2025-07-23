@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.aspectj.weaver.ast.Not;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -41,6 +42,7 @@ public class NotificationController {
             @ApiResponse(responseCode = "400", description = "Invalid notification request")
     })
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<NotificationResponseDto> createNotification(@RequestBody @Valid NotificationRequestDto dto){
 
         NotificationResponseDto created = notificationService.createNotification(dto);
@@ -60,6 +62,7 @@ public class NotificationController {
             @ApiResponse(responseCode = "404", description = "No notifications found for the user")
     })
     @GetMapping("/user/{userId}")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'AUDITOR')")
     public ResponseEntity<List<NotificationResponseDto>> getNotificationByUser(
             @Parameter(name = "userId", description = "Unique identifier of the user.", required = true)
             @PathVariable Long userId){
@@ -81,6 +84,7 @@ public class NotificationController {
             @ApiResponse(responseCode = "404", description = "No unread notifications found for the user.")
     })
     @GetMapping("/user/{userId}/unread")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
     public ResponseEntity<List<NotificationResponseDto>> getUnReadByUser(
             @Parameter(name = "userId", description = "Unique identifier of the user", required = true)
             @PathVariable Long userId){
@@ -102,6 +106,7 @@ public class NotificationController {
             @ApiResponse(responseCode = "404", description = "Notification not found")
     })
     @PostMapping("/{notificationId}/read")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> markAsRead(
             @Parameter(name = "notificationId", description = "Unique identifier of the notification", required = true)
             @PathVariable Long notificationId){
@@ -124,6 +129,7 @@ public class NotificationController {
             @ApiResponse(responseCode = "404", description = "User not found")
     })
     @PostMapping("/simulate/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<NotificationResponseDto>>simulateNotifications(@PathVariable Long userId){
         List<NotificationResponseDto> list = notificationService.createNotificationByUser(userId);
 

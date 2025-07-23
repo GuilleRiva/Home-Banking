@@ -16,6 +16,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -40,6 +41,7 @@ public class PaymentController {
             @ApiResponse(responseCode = "404", description = "Account not found or no payments available")
     })
     @GetMapping("/account/{accountId}")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
     public ResponseEntity<List<PaymentResponseDto>>getPaymentByAccount(
             @Parameter(name = "accountId", description = "Unique identifier of the account", required = true)
             @PathVariable Long accountId){
@@ -83,6 +85,7 @@ public class PaymentController {
             @ApiResponse(responseCode = "400", description = "Invalid payment request")
     })
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
     public ResponseEntity<PaymentResponseDto> makePayment(@Valid @RequestBody PaymentRequestDto dto){
 
         PaymentResponseDto payment = paymentService.makePayment(dto);

@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -39,6 +40,7 @@ public class CardController {
             @ApiResponse(responseCode = "404", description = "cards by account not found")
     })
     @GetMapping("/account/{accountId}")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
     public ResponseEntity<List<CardResponseDto>> getCardByAccount(@PathVariable Long accountId){
 
         List<CardResponseDto> cards = cardService.getCardByAccount(accountId);
@@ -60,6 +62,7 @@ public class CardController {
             @ApiResponse(responseCode = "400", description = "Invalid request data")
     })
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CardResponseDto> createCard(
             @RequestBody Long accountId, TypeCard typeCard, String mark){
 
@@ -81,6 +84,7 @@ public class CardController {
             @ApiResponse(responseCode = "404", description = "Card not found")
     })
     @DeleteMapping("/{cardId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteCard(
             @Parameter(name = "cardId", description = "Unique identifier of the card", required = true)
             @PathVariable Long cardId){

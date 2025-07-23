@@ -16,6 +16,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.w3c.dom.ranges.RangeException;
 
@@ -40,6 +41,7 @@ public class LoanController {
             @ApiResponse(responseCode = "404", description = "Invalid simulation request")
     })
     @PostMapping("/simulate")
+    @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<LoanResponseDto> simulateLoan(@RequestBody @Valid LoanRequestDto dto){
 
         LoanResponseDto simulated = loanService.simulateLoans(dto);
@@ -78,6 +80,7 @@ public class LoanController {
                             array = @ArraySchema(schema = @Schema(implementation = LoanResponseDto.class))))
     })
     @GetMapping("/account/{accountId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<LoanResponseDto> getLoanByAccount(
             @Parameter(name = "accountId", description = "ID of the account", required = true)
             @PathVariable Long accountId){

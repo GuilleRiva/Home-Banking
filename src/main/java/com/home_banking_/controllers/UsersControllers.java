@@ -16,6 +16,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -40,6 +41,7 @@ public class UsersControllers {
                             array = @ArraySchema(schema = @Schema(implementation = UserResponseDto.class))))
     })
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
     public ResponseEntity<List<UserResponseDto>> getAllUsers(){
         List<UserResponseDto> users = userService.findAll();
 
@@ -58,6 +60,7 @@ public class UsersControllers {
             @ApiResponse(responseCode = "404", description = "User not found")
     })
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
     public ResponseEntity<UserResponseDto> getUserById(
             @Parameter(name = "userId", description = "Unique identifier of the user", required = true)
             @PathVariable Long id){
@@ -69,6 +72,7 @@ public class UsersControllers {
 
 
     @GetMapping("/{email}")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
     public ResponseEntity<UserResponseDto> getByEmail(@PathVariable String email){
         UserResponseDto users= userService.findByEmail(email);
         return ResponseEntity.ok(users);
@@ -113,6 +117,7 @@ public class UsersControllers {
             @ApiResponse(responseCode = "404", description = "User not found")
     })
     @DeleteMapping("/{userId}")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
     public ResponseEntity<Void> deleteUser(
             @Parameter(name = "userId", description = "Unique identifier of the user", required = true)
             @PathVariable Long userId){
