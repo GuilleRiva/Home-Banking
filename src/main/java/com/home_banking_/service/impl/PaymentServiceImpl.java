@@ -11,12 +11,14 @@ import com.home_banking_.model.Payment;
 import com.home_banking_.repository.AccountRepository;
 import com.home_banking_.repository.PaymentRepository;
 import com.home_banking_.service.PaymentService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class PaymentServiceImpl implements PaymentService {
 
@@ -33,8 +35,15 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public PaymentResponseDto makePayment(PaymentRequestDto dto) {
+        log.info("Processing new payment for account ID: {} | Amount: {} | Description: {}",
+                dto.getAccountId(), dto.getAmount(), dto.getDescription());
+
         Account account = accountRepository.findById(dto.getAccountId())
-                .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
+                .orElseThrow(()-> {
+                    log.warn("Account not found when attempting to make a payment. ID: {}", dto.getAccountId());
+                           return new ResourceNotFoundException("Account not found");
+                        });
+
 
 
 
@@ -46,17 +55,30 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setPaymentDate(LocalDateTime.now());
         payment.setStatusPayment(StatusPayment.COMPLETED);
         payment.setServiceEntity(ServiceEntity.TARJETA_CREDITO);
+
         paymentRepository.save(payment);
+
+        log.info("Payment successfully registered for ID account: {} | Payment ID: {} | Amount: {}",
+                dto.getAccountId(), payment.getId(), dto.getAmount());
 
         return paymentMapper.toDto(payment);
     }
 
+
+
     @Override
     public List<PaymentResponseDto> getPaymentByAccount(Long accountId) {
+        log.info("Getting payment history for ID account: {}", accountId);
+
         Account account = accountRepository.findById(accountId)
-                .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
+                .orElseThrow(()-> {
+                    log.warn("Account not found when checking payments. ID: {}", accountId);
+                           return new ResourceNotFoundException("Account not found");
+                        });
 
         List<Payment> payments = paymentRepository.findByAccount_Id(accountId);
+
+        log.info("Total payments found for account ID {}: {} ",accountId, payments.size());
 
         return payments.stream()
                 .map(paymentMapper::toDto)
@@ -67,7 +89,11 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public List<PaymentResponseDto> getPaymentByEntity(ServiceEntity entity) {
+        log.info("Getting payments filtered by service entity: {}", entity);
+
         List<Payment> payments = paymentRepository.findByServiceEntity(entity);
+
+        log.info("Total payments found for entity {}: {}", entity, payments.size());
 
         return payments.stream()
                 .map(paymentMapper::toDto)

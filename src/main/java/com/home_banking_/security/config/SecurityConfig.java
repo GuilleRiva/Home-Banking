@@ -19,6 +19,11 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -62,6 +67,8 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
+
+
     @Bean
     public OpenAPI customOpenAPI(){
         return new OpenAPI()
@@ -76,6 +83,32 @@ public class SecurityConfig {
                                 .scheme("bearer")
                                 .bearerFormat("JWT")));
 
+    }
+
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource(){
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        //Dominios permitdos
+        configuration.setAllowedOrigins(List.of(
+                "https://www.api-home-banking.com",
+                "http://localhost:3000" // para desarrollo local
+        ));
+
+        //Metodos HTTP permitidos
+        configuration.setAllowedMethods(List.of("GET", "PUT", "DELETE", "POST"));
+
+        // Headers permitidos
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+
+        // permito evitar cookies/ token en headers
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
     }
 
 

@@ -10,11 +10,13 @@ import com.home_banking_.model.Users;
 import com.home_banking_.repository.AuditLogRepository;
 import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.AuditLogService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 public class AuditLogServiceImpl implements AuditLogService {
 
@@ -31,34 +33,49 @@ public class AuditLogServiceImpl implements AuditLogService {
 
    @Override
     public void registerEvent(Long userId, String message, String typeEvent, String type) {
+        log.info("Logging audit event for user ID: {} | Action: {} | Type: {}", userId,typeEvent, type);
+
         //Buscar el usuario que generó el evento
         Users users = usersRepository.findById(userId)
-                .orElseThrow(()-> new ResourceNotFoundException("User not found"));
+                .orElseThrow(()-> {
+                    log.warn("User not found when registering event. ID: {}", userId);
+                    return new ResourceNotFoundException("User not found");
+                });
 
        //Convertir el tipo (String) a Enum
         AuditType auditType;
         try {
             auditType = AuditType.valueOf(type.toUpperCase());
         }catch (IllegalArgumentException e){
+            log.error("Invalid audit type received: {}", type);
             throw new BusinessException("Invalid audit type : " + type);
         }
 
         //Crear el log manualmente (no usamos mapper por que no hay DTO)
-        AuditLog log = new AuditLog();
-        log.setUsers(users);
-        log.setAction(typeEvent);
-        log.setDescription(message);
-        log.setDateTime(LocalDateTime.now());
-        log.setIpOrigin("127.0.0.1"); //Puedo luego obtener esto desde el request HTTP
+        AuditLog logEntity = new AuditLog();
+        logEntity.setUsers(users);
+        logEntity.setAction(typeEvent);
+        logEntity.setDescription(message);
+        logEntity.setDateTime(LocalDateTime.now());
+        logEntity.setIpOrigin("127.0.0.1");//Puedo luego obtener esto desde el request HTTP
+       logEntity.setType(auditType);
+
 
         //guardar en base de datos
-        auditLogRepository.save(log);
+        auditLogRepository.save(logEntity);
+        log.info("Audit event successfully logged for user ID: {}", userId);
     }
+
+
+
 
     @Override
     public List<AuditLogResponseDto> getLogsByUser(Long user_id) {
+        log.info("Getting audit logs for user ID: {}", user_id);
 
         List<AuditLog> logs = auditLogRepository.findByUsers_IdOrderByDateTimeDesc(user_id);
+        log.debug("Total logs found for user ID {}: {}", user_id, logs.size());
+
         return logs.stream()
                 .map(auditLogMapper::toDTO)
                 .toList();
@@ -68,11 +85,23 @@ public class AuditLogServiceImpl implements AuditLogService {
 
     @Override
     public List<AuditLogResponseDto> getLogsByType(String type) {
+        log.info("Getting audit logs for type {}: ", type);
 
-        AuditType auditType = AuditType.valueOf(type.toUpperCase());
+        AuditType auditType;
+        try {
+            auditType = AuditType.valueOf(type.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid audit type when querying logs: {}", type);
+            throw new BusinessException("Invalid audit type: " + type);
+        }
+
         List<AuditLog> logs = auditLogRepository.findByTypeOrderByDateTimeDesc(auditType);
-        return  logs.stream()
+
+        log.debug("Total logs found for type {}: {}", auditType, logs.size());
+
+        return logs.stream()
                 .map(auditLogMapper::toDTO)
                 .toList();
+
     }
 }

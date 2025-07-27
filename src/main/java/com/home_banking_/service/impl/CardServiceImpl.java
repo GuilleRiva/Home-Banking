@@ -11,12 +11,14 @@ import com.home_banking_.model.Card;
 import com.home_banking_.repository.AccountRepository;
 import com.home_banking_.repository.CardRepository;
 import com.home_banking_.service.CardService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Random;
 
+@Slf4j
 @Service
 public class CardServiceImpl implements CardService {
 
@@ -42,15 +44,22 @@ public class CardServiceImpl implements CardService {
         return number.toString();
     }
 
+
     private String generateCVV(){
         int cvv = new Random().nextInt(900) + 100;
         return String.valueOf(cvv);
     }
 
+
     @Override
     public CardResponseDto createCard(Long accountId, TypeCard typeCard, String mark) {
+        log.info("Requesting card creation for ID account: {}, type: {}, mark: {}", accountId, typeCard, mark);
+
         Account account = accountRepository.findById(accountId)
-                .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
+                .orElseThrow(()->{
+                    log.warn("Account not found when creating card. ID: {}", accountId);
+                    return new ResourceNotFoundException("Account not found");
+                });
 
         Card card = new Card();
         card.setAccount(account);
@@ -61,38 +70,60 @@ public class CardServiceImpl implements CardService {
         card.setStatusCard(StatusCard.ACTIVE);
 
         cardRepository.save(card);
+        log.info("Card created successfully for ID account: {}", accountId);
         return cardMapper.toDTO(card);
     }
 
 
+
+
     @Override
     public void cancelCard(Long cardId) {
+        log.info("Requesting ID card cancellation: {}", cardId);
+
         Card card = cardRepository.findById(cardId)
-                .orElseThrow(()-> new ResourceNotFoundException("Card not found"));
+                .orElseThrow(()-> {
+                    log.warn("Card not found when cancelling. ID: {}", cardId);
+                   return new ResourceNotFoundException("Card not found");
+                });
 
         if (card.getStatusCard()== StatusCard.BLOCKED){
+            log.warn("Attempt to cancel an already blocked card. ID: {}",cardId);
             throw new BusinessException("Card is already blocked");
         }
 
         card.setStatusCard(StatusCard.BLOCKED);
         cardRepository.save(card);
+        log.info("Card successfully cancelled. ID: {}", cardId);
 
     }
+
+
 
 
     @Override
     public void deleteCard(Long cardId) {
+        log.info("Request to delete card ID: {}", cardId);
+
         if (!cardRepository.existsById(cardId)){
+            log.warn("Attempt to delete non-existent card. ID: {}", cardId);
             throw new ResourceNotFoundException("Card not found");
         }
 
         cardRepository.deleteById(cardId);
+        log.info("Card successfully deleted. ID: {}", cardId);
     }
+
+
 
 
     @Override
     public List<CardResponseDto> getCardByAccount(Long accountId) {
+        log.info("Getting cards linked to account ID: {}", accountId);
+
         List<Card> cards = cardRepository.findByAccount_Id(accountId);
+
+        log.debug("Total cards found for account {}: {}", accountId, cards.size());
         return cards.stream()
                 .map(cardMapper::toDTO)
                 .toList();

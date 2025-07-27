@@ -10,6 +10,7 @@ import com.home_banking_.model.Users;
 import com.home_banking_.repository.NotificationRepository;
 import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.NotificationService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -18,6 +19,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class NotificationServiceImpl implements NotificationService {
 
@@ -32,26 +34,42 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
 
+
+
     @Override
     public NotificationResponseDto createNotification(NotificationRequestDto dto) {
+        log.info("Creating notification for user ID: {}", dto.getUserId());
+
         Users users = usersRepository.findById(Long.valueOf(dto.getUserId()))
-                .orElseThrow(()-> new ResourceNotFoundException("User not found"));
+                .orElseThrow(()-> {
+                    log.warn("User not found when creating notification. ID: {}", dto.getUserId());
+                    return new ResourceNotFoundException("User not found");
+                });
 
         Notification notification = notificationMapper.toEntity(dto);
         notification.setUsers(users);
         notification.setMessage(dto.getMessage());
         notification.setShippingDate(LocalDateTime.now());
         notification.setRead(false);
+
         notificationRepository.save(notification);
 
+        log.info("Notification created successfully for user ID: {}", dto.getUserId());
         return notificationMapper.toDto(notification);
     }
 
 
+
+
     @Override
     public List<NotificationResponseDto> createNotificationByUser(Long userId) {
+        log.info("Creating predefined notifications for user ID. {}", userId);
+
         Users users = usersRepository.findById(userId)
-                .orElseThrow(()-> new ResourceNotFoundException("User not found"));
+                .orElseThrow(()-> {
+                    log.warn("User not found when generating automatic notifications. ID: {}", userId);
+                    return new ResourceNotFoundException("User not found");
+                });
 
         List<Notification> notifications = new ArrayList<>();
 
@@ -74,50 +92,85 @@ public class NotificationServiceImpl implements NotificationService {
 
         notificationRepository.saveAll(notifications);
 
+        log.info("Has been created {} automatic notifications for user ID: {}", notifications.size(), userId);
         return notifications.stream()
                 .map(notificationMapper::toDto)
                 .collect(Collectors.toList());
     }
+
+
 
 
     @Override
     public List<NotificationResponseDto> getNotificationByUser(Long userId) {
+        log.info("Getting all notifications for user ID. {}", userId);
+
         Users users = usersRepository.findById(userId)
-                .orElseThrow(()-> new ResourceNotFoundException("User not found"));
+                .orElseThrow(()-> {
+                    log.warn("User not found when checking notifications. ID: {}", userId);
+                           return new ResourceNotFoundException("User not found");
+                        });
 
         List<Notification> notifications = notificationRepository.findByUsers_IdOrderByShippingDateDesc(users.getId());
+
+        log.info("Total notifications found for user ID {}: {}", userId, notifications.size());
         return notifications.stream()
                 .map(notificationMapper::toDto)
                 .collect(Collectors.toList());
     }
 
 
+
+
     @Override
     public List<NotificationResponseDto> getUnreadByUser(Long userId) {
+        log.info("Getting unread notifications for user ID: {}", userId);
+
         Users users = usersRepository.findById(userId)
-                .orElseThrow(()-> new ResourceNotFoundException("User not found"));
+                .orElseThrow(()-> {
+                    log.warn("User not found when checking unread notifications");
+                            return new ResourceNotFoundException("User not found");
+                        });
 
         List<Notification> unread = notificationRepository.findByUsers_IdAndReadFalseOrderByShippingDateDesc(users.getId());
+
+        log.info("Total unread notifications for user ID {}: {}", userId, unread.size());
         return unread.stream()
                 .map(notificationMapper::toDto)
                 .collect(Collectors.toList());
     }
 
 
+
     @Override
     public void markAsRead(Long notificationId) {
+        log.info("Marking notification as read. ID: {}", notificationId);
+
         Notification noti = notificationRepository.findById(notificationId)
-                .orElseThrow(()-> new ResourceNotFoundException("Notification not found"));
+                .orElseThrow(()-> {
+                    log.warn("Notification not found when trying to mark as read. ID: {}", notificationId);
+                            return new ResourceNotFoundException("Notification not found");
+                        });
 
         noti.setRead(true);
         notificationRepository.save(noti);
+
+        log.info("Notification marked as read successfully. ID: {}", notificationId);
     }
+
+
 
 
     @Override
     public void deleteNotification(Long notificationId) {
+        log.info("Notification removal request ID: {}", notificationId);
+
         if (!notificationRepository.existsById(notificationId)){
+            log.warn("Notification not found when trying to delete. ID: {}", notificationId);
             throw new ResourceNotFoundException("Notification not found");
         }
+        notificationRepository.deleteById(notificationId);
+
+        log.info("Notification successfully removed. ID: {}", notificationId);
     }
 }
