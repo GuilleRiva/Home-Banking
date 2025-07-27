@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @Tag(name = "Card controller", description = "User card management")
 @RestController
 @RequestMapping("/api/card")
@@ -42,8 +44,10 @@ public class CardController {
     @GetMapping("/account/{accountId}")
     @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
     public ResponseEntity<List<CardResponseDto>> getCardByAccount(@PathVariable Long accountId){
+        log.info("GET /api/cards/account/{} - Consultying cards associated with the account", accountId);
 
         List<CardResponseDto> cards = cardService.getCardByAccount(accountId);
+        log.info("Total cards found for account ID {}: {}", accountId, cards.size());
         return ResponseEntity.ok(cards);
 
     }
@@ -65,8 +69,11 @@ public class CardController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CardResponseDto> createCard(
             @RequestBody Long accountId, TypeCard typeCard, String mark){
+        log.info("POST /api/cards - Creating card  for ID account: {} | Type: {} | Mark: {}",
+                accountId, typeCard, mark);
 
         CardResponseDto created = cardService.createCard(accountId, typeCard, mark);
+        log.info("Card created successfully for account ID: {}", accountId);
 
         return new ResponseEntity<>(created, HttpStatus.CREATED);
 
@@ -89,8 +96,11 @@ public class CardController {
             @Parameter(name = "cardId", description = "Unique identifier of the card", required = true)
             @PathVariable Long cardId){
 
+        log.info("DELETE /api/cards/{} - Deleting card", cardId);
+
         cardService.deleteCard(cardId);
 
+        log.info("Card successfully removed. ID: {}", cardId);
         return ResponseEntity.noContent().build();
     }
 
@@ -110,7 +120,10 @@ public class CardController {
             @Parameter(name = "cardId", description = "Unique identifier of the card to be cancelled", required = true)
             @PathVariable Long cardId){
 
+        log.info("PUT /api/cards/{}/cancel - Cancelling card", cardId);
+
         cardService.cancelCard(cardId);
+        log.info("Card successfully canceled");
 
         return ResponseEntity.noContent().build();
     }

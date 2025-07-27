@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @Tag(name = "Audit logs", description = "Operations for registering and retrieving audit log events")
 @RestController
 @RequestMapping("/api/auditLog")
@@ -41,9 +43,12 @@ public class AuditLogController {
     @PostMapping("/register")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> registerAuditLog(@RequestBody @Valid AuditLogResponseDto dto){
+        log.info("POST /api/audit/register - Logging audit event for userId: {} | Type: {} | Action: {}",
+                dto.getId(), dto.getType(), dto.getAction());
 
         auditLogService.registerEvent(dto.getId(), dto.getType(), dto.getAction(), dto.getIpOrigin());
 
+        log.info("Audit event successfully logged for userID: {}", dto.getId());
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
@@ -64,8 +69,11 @@ public class AuditLogController {
             @Parameter(name = "userId", description = "unique identifier of the user", required = true)
             @PathVariable Long userId){
 
+        log.info("GET /api/audit/user/{} - Querying audit logs for the user", userId);
+
         List<AuditLogResponseDto> logs = auditLogService.getLogsByUser(userId);
 
+        log.info("They recovered {} audit logs for userID: {}", logs.size(), userId);
         return ResponseEntity.ok(logs);
     }
 
@@ -86,9 +94,12 @@ public class AuditLogController {
             @Parameter(name = "type", description = "Type of logs", required = true)
             @PathVariable String type){
 
+        log.info("GET /api/audit/type/{} - Querying audit logs by type", type);
+
         List<AuditLogResponseDto> logs = auditLogService.getLogsByType(type);
 
+        log.info("They recovered {} type logs: {}", logs.size(), type);
         return ResponseEntity.ok(logs);
     }
 
-}
+    }

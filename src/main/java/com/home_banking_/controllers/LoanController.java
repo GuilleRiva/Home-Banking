@@ -14,13 +14,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.w3c.dom.ranges.RangeException;
 
-
+@Slf4j
 @Tag(name= "Loan controller", description = "User Loan management")
 @RestController
 @RequestMapping("/api/loans")
@@ -43,8 +44,12 @@ public class LoanController {
     @PostMapping("/simulate")
     @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<LoanResponseDto> simulateLoan(@RequestBody @Valid LoanRequestDto dto){
+        log.info("POST /api/loans/simulate - Simulating a loan for an ID account: {} | Amount: {} | Quotas: {}",
+                dto.getAccountId(), dto.getAmount(), dto.getQuotas());
 
         LoanResponseDto simulated = loanService.simulateLoans(dto);
+
+        log.info("Loan simulation completed for account ID: {}", dto.getAccountId());
         return ResponseEntity.ok(simulated);
     }
 
@@ -63,8 +68,12 @@ public class LoanController {
     })
     @PostMapping("/grant")
     public ResponseEntity<LoanResponseDto> grantLoan(@RequestBody @Valid LoanRequestDto dto){
+        log.info("POST /api/loans/grant - Granting loan to ID account: {} | Amount: {} | Quotas: {}",
+                dto.getAccountId(), dto.getAmount(), dto.getQuotas());
 
         LoanResponseDto granted = loanService.grantLoan(dto);
+
+        log.info("Loan successfully granted for ID account: {}", dto.getAccountId());
         return new ResponseEntity<>(granted, HttpStatus.CREATED);
     }
 
@@ -85,9 +94,17 @@ public class LoanController {
             @Parameter(name = "accountId", description = "ID of the account", required = true)
             @PathVariable Long accountId){
 
+        log.info("GET /api/loans/account/{} - Consulting loan associated with the account", accountId);
+
         return loanService.getLoanByAccount(accountId)
-                .map(ResponseEntity::ok)
-                .orElseThrow(()-> new ResourceNotFoundException("Loan not found for account ID: " + accountId));
+                .map(loan -> {
+                    log.info("Loan found for ID account: {}",accountId);
+                    return ResponseEntity.ok(loan);
+                })
+                .orElseThrow(()-> {
+                    log.warn("Loan not found for account ID: {}", accountId);
+                    return new ResourceNotFoundException("Loan not found for account ID:" + accountId);
+                });
     }
 
 }

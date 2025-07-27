@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 
-
+@Slf4j
 @Tag(name= "Account Controller", description = "Bank account management")
 @RestController
 @RequestMapping("/api/account")
@@ -43,9 +44,11 @@ public class AccountController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<AccountResponseDto>> getAll(){
+        log.info("GET /api/accounts - Consult all registered accounts");
 
         List<AccountResponseDto> accounts = accountService.getAll();
 
+        log.info("They found each other {} registered accounts", accounts.size());
         return ResponseEntity.ok(accounts);
     }
 
@@ -67,8 +70,10 @@ public class AccountController {
             @Parameter(name = "accountId", description = "Unique identifier of the account", required = true)
             @PathVariable Long accountId){
 
+        log.info("get /api/accounts/{} - Querying account by ID", accountId);
         AccountResponseDto account = accountService.getAccountById(accountId);
 
+        log.info("Account found. ID: {}", accountId);
         return ResponseEntity.ok(account);
 
     }
@@ -92,8 +97,9 @@ public class AccountController {
             @Parameter(name = "accountId",description = "Unique identifier of the account", required = true)
             @PathVariable Long accountId){
 
+        log.info("GET /api/accounts/{}/balance - Checking account balance", accountId);
         BigDecimal balance = accountService.getBalance(accountId);
-
+        log.info("Balance successfully obtained for account ID: {}", accountId);
       return ResponseEntity.ok(balance);
 
     }
@@ -112,8 +118,10 @@ public class AccountController {
     })
     @PostMapping
     public ResponseEntity<AccountResponseDto>createAccount(@RequestBody @Valid AccountRequestDto dto){
+        log.info("POST /api/accounts - Creating account for user ID: {}", createAccount(dto));
 
         AccountResponseDto created = accountService.createAccount(dto);
+        log.info("Account created successfully. ID: {}", created.getId());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
 
@@ -137,7 +145,9 @@ public class AccountController {
             @Parameter(name = "alias", description = "account identifier name", required = true)
             @PathVariable String alias){
 
+        log.info("GET /api/accounts/alias/{} - Querying account by alias", alias);
         AccountResponseDto account = accountService.getAccountByAlias(alias);
+        log.info("Account found with alias: {}", alias);
 
         return ResponseEntity.ok(account);
     }
@@ -159,7 +169,9 @@ public class AccountController {
             @Parameter(name = "accountId", description = "Unique identifier of the account", required = true)
             @PathVariable Long accountId){
 
+        log.info("DELETE /api/accounts/{} - Deleting account", accountId);
         accountService.deleteAccount(accountId);
+        log.info("Account successfully deleted. ID: {}", accountId);
 
         return  ResponseEntity.noContent().build();
     }

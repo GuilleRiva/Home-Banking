@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @Tag(name = "User Controller", description = "Operations related to user management and registration ")
 @RestController
 @RequestMapping("/api/users")
@@ -43,7 +45,10 @@ public class UsersControllers {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
     public ResponseEntity<List<UserResponseDto>> getAllUsers(){
+        log.info("GET /api/users - Requesting list of all users");
+
         List<UserResponseDto> users = userService.findAll();
+        log.info("Recovered users: {}", users.size());
 
         return ResponseEntity.ok(users);
     }
@@ -65,16 +70,22 @@ public class UsersControllers {
             @Parameter(name = "userId", description = "Unique identifier of the user", required = true)
             @PathVariable Long id){
 
+        log.info("GET /api/users/{} - Searching for user by ID", id);
+
         UserResponseDto users = userService.findById(id);
+        log.info("User not found: {}", users.getEmail());
         return ResponseEntity.ok(users);
 
     }
 
 
-    @GetMapping("/{email}")
+    @GetMapping("/email/{email}")
     @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
     public ResponseEntity<UserResponseDto> getByEmail(@PathVariable String email){
+        log.info("GET /api/users/email/{} - Searching for user by email",email);
+
         UserResponseDto users= userService.findByEmail(email);
+        log.info("User recovered by email: {}", users.getEmail());
         return ResponseEntity.ok(users);
     }
 
@@ -92,8 +103,10 @@ public class UsersControllers {
     })
     @PostMapping
     public ResponseEntity<UserResponseDto> createUser(@RequestBody @Valid UserRequestDto newUser){
+        log.info("POST /api/users - Registering new user: {}", newUser.getEmail());
 
         UserResponseDto created = userService.createUser(newUser);
+        log.info("User created successfully with ID: {}", created.getId());
         return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
@@ -102,7 +115,10 @@ public class UsersControllers {
     public ResponseEntity<UserResponseDto> updateUser(@PathVariable Long userId,
                                             @Valid @RequestBody UserResponseDto updatedUser){
 
+        log.info("POST /api/users/{} - Updating user", userId);
+
         UserResponseDto userResponse = userService.save(userId,updatedUser);
+        log.info("User successfully updated: {}", userResponse.getEmail());
         return ResponseEntity.ok(userResponse);
     }
 
@@ -122,7 +138,10 @@ public class UsersControllers {
             @Parameter(name = "userId", description = "Unique identifier of the user", required = true)
             @PathVariable Long userId){
 
+        log.warn("DELETE /api/users/{} - Requesting user deletion", userId);
+
         userService.deleteById(userId);
+        log.info("User with ID {} successfully deleted", userId);
         return ResponseEntity.noContent().build();
     }
 }

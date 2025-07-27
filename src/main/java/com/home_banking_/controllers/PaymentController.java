@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @Tag(name= "Payment Controller", description = "Operations related to user payments and services entities.")
 @RestController
 @RequestMapping("/api/payments")
@@ -46,10 +48,14 @@ public class PaymentController {
             @Parameter(name = "accountId", description = "Unique identifier of the account", required = true)
             @PathVariable Long accountId){
 
+        log.info("GET /api/payments/account/{} - Getting payments associated with the account", accountId);
+
         List<PaymentResponseDto> payments = paymentService.getPaymentByAccount(accountId);
+        log.info("Payments recovered: {} by the account {}", payments.size(), accountId);
 
         return ResponseEntity.ok(payments);
     }
+
 
 
     @Operation(
@@ -68,10 +74,14 @@ public class PaymentController {
                     schema = @Schema(implementation = ServiceEntity.class, example = "INTERNET"))
             @PathVariable ServiceEntity entity){
 
+        log.info("GET /api/payments/entity/{} - Getting paid by service entity", entity);
+
         List<PaymentResponseDto> serviceEntities = paymentService.getPaymentByEntity(entity);
+        log.info("Payments found for the entity {}: {}", entity, serviceEntities.size());
 
         return ResponseEntity.ok(serviceEntities);
     }
+
 
 
     @Operation(
@@ -87,8 +97,12 @@ public class PaymentController {
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
     public ResponseEntity<PaymentResponseDto> makePayment(@Valid @RequestBody PaymentRequestDto dto){
+        log.info("POST /api/payments - Processing payment for account ID: {}, entity: {}",
+                dto.getAccountId(), dto.getServiceEntity());
 
         PaymentResponseDto payment = paymentService.makePayment(dto);
+        log.info("Payment successfully made. Payment ID: {}", payment.getId());
+
         return ResponseEntity.status(HttpStatus.CREATED).body(payment);
     }
 }

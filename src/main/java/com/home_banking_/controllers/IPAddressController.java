@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @Tag(name = "IP address controller", description = "Operations related to suspicious IPs and user tracking")
 @RestController
 @RequestMapping("/api/IPAddress")
@@ -46,9 +48,11 @@ public class IPAddressController {
     @PostMapping("/register")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<IPAddressResponseDto>registerIP(@RequestBody IPAddressRequestDto dto){
+        log.info("POST /api/ip/register - Registering IP for userId: {} | IP: {}", dto.getId(), dto.getDirectionIP());
 
 
         IPAddressResponseDto registeredIP = ipAddressService.registerIP(dto);
+        log.info("IP successfully registered for userID: {}", dto.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(registeredIP);
     }
 
@@ -69,7 +73,10 @@ public class IPAddressController {
             @Parameter(name = "IpId", description = "Unique identifier of the IP address", required = true)
             @PathVariable Long ipId){
 
+        log.info("PUT /api/ip/{}/suspicious - Marking IP as suspicious", ipId);
+
         ipAddressService.makeAsSuspicious(ipId);
+        log.info("IP successfully marked as suspicious. ID: {}", ipId);
         return ResponseEntity.noContent().build();
     }
 
@@ -88,7 +95,11 @@ public class IPAddressController {
     @GetMapping("/check")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Boolean> isSuspicious(@RequestParam String ip){
+        log.info("GET /api/ip/check - Checking if the IP is suspicious. {}", ip);
+
         boolean result = ipAddressService.isSuspicious(ip);
+        log.info("IP verification result '{}': {}",ip, result);
+
         return ResponseEntity.ok(result);
     }
 
@@ -111,10 +122,18 @@ public class IPAddressController {
             @Parameter(name = "userID", description = "Unique identifier of the user", required = true)
             @PathVariable Long userId){
 
+        log.info("GET /api/ip/user/{} - Querying IPs associated with the user", userId);
+
         Users users = usersRepository.findById(userId)
-                .orElseThrow(()-> new ResourceNotFoundException("User not found"));
+                .orElseThrow(()-> {
+                            log.warn("User not found when querying IPs. ID: {}", userId);
+                           return new ResourceNotFoundException("User not found");
+                        });
 
         List<IPAddressResponseDto> ipList = ipAddressService.getIPsByUser(userId);
+
+        log.info("Total IPs retrieved for userID: {}: {}", userId, ipList.size());
+
         return ResponseEntity.ok(ipList);
 
     }

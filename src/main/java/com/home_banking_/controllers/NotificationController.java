@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.aspectj.weaver.ast.Not;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @Tag(name = "Notification controller", description = "Operations related with notifications ")
 @RestController
 @RequestMapping("/api/notifications")
@@ -44,8 +46,11 @@ public class NotificationController {
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<NotificationResponseDto> createNotification(@RequestBody @Valid NotificationRequestDto dto){
+        log.info("POST /api/notifications - Creating new notification for userId: {}", dto.getUserId());
 
         NotificationResponseDto created = notificationService.createNotification(dto);
+        log.info("Notification created with ID: {}", created.getId());
+
         return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
@@ -66,7 +71,10 @@ public class NotificationController {
     public ResponseEntity<List<NotificationResponseDto>> getNotificationByUser(
             @Parameter(name = "userId", description = "Unique identifier of the user.", required = true)
             @PathVariable Long userId){
+
+        log.info("GET /api/notifcations/user/{} - Getting notifications from the user", userId);
         List<NotificationResponseDto> notifications = notificationService.getNotificationByUser(userId);
+        log.info("Number of notifications found: {}", notifications.size());
 
         return ResponseEntity.ok(notifications);
     }
@@ -89,7 +97,10 @@ public class NotificationController {
             @Parameter(name = "userId", description = "Unique identifier of the user", required = true)
             @PathVariable Long userId){
 
+        log.info("GET /api/notifications/user/{}/unread - Getting unread notifications", userId);
+
         List<NotificationResponseDto> unread = notificationService.getUnreadByUser(userId);
+        log.info("Number of unread notifications: {}", unread.size());
 
         return ResponseEntity.ok(unread);
     }
@@ -110,7 +121,10 @@ public class NotificationController {
     public ResponseEntity<Void> markAsRead(
             @Parameter(name = "notificationId", description = "Unique identifier of the notification", required = true)
             @PathVariable Long notificationId){
+
+        log.info("POST /api/notifications/{}/read - Marking notification as read", notificationId);
         notificationService.markAsRead(notificationId);
+        log.info("Notification {} marked as read", notificationId);
 
         return ResponseEntity.noContent().build();
     }
@@ -131,7 +145,10 @@ public class NotificationController {
     @PostMapping("/simulate/{userId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<NotificationResponseDto>>simulateNotifications(@PathVariable Long userId){
+
+        log.info("POST /api/notifications/simulates/{} - Simulating notifications for the user", userId);
         List<NotificationResponseDto> list = notificationService.createNotificationByUser(userId);
+        log.info("Simulation completed. Total number of simulated notifications: {}", list.size());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(list);
     }
@@ -151,7 +168,10 @@ public class NotificationController {
     public ResponseEntity<Void>deleteNotification(
             @Parameter(name = "notificationId", description = "Unique identifier of the notification", required = true)
             @PathVariable Long notificationId){
+
+        log.warn("DELETE /api/notifications/{} - Deteling notification", notificationId);
         notificationService.deleteNotification(notificationId);
+        log.info("Notification {} successfully removed", notificationId);
 
         return ResponseEntity.noContent().build();
     }
