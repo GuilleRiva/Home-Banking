@@ -1,0 +1,18 @@
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /usr/share/filebeat/logs/*.log  # Carpeta donde tu app genera logs
+
+output.logstash:
+  hosts: ["logstash:5044"]   # Asegurate de que Logstash tenga ese puerto habilitado
+
+setup.kibana:
+  host: "kibana:5601"
+
+processors:
+  - add_host_metadata: ~
+  - add_docker_metadata: ~
+  - add_cloud_metadata: ~
+
+logging.level: info
