@@ -54,7 +54,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/client/**").hasRole("CLIENT")
                         .requestMatchers("/api/employed/**").hasRole("EMPLOYED")
-                        .requestMatchers("/actuator/prometheus").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .build();
@@ -104,7 +104,7 @@ public class SecurityConfig {
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
 
         // permito evitar cookies/ token en headers
-        configuration.setAllowCredentials(true);git 
+        configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

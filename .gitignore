@@ -1,33 +1,26 @@
-HELP.md
-target/
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+# Java & Maven
+/target/
+*.log
+*.jar
+*.class
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
+# Logs
+logs/
+*.log
 
-### IntelliJ IDEA ###
-.idea
-*.iws
+# Sistema operativo
+.DS_Store
+
+# Configs sensibles o temporales
+database.yml
+application.properties
+application.yml
+
+# IDEs
+.idea/
 *.iml
-*.ipr
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
 .vscode/
+
+
+Dockerfile
+mysql_data/
