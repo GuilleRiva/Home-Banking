@@ -24,10 +24,12 @@ public class AuditLogServiceImpl implements AuditLogService {
     private final UsersRepository usersRepository;
     private final AuditLogMapper auditLogMapper;
 
+
     public AuditLogServiceImpl(AuditLogRepository auditLogRepository, UsersRepository usersRepository, AuditLogMapper auditLogMapper) {
         this.auditLogRepository = auditLogRepository;
         this.usersRepository = usersRepository;
         this.auditLogMapper = auditLogMapper;
+
     }
 
 
@@ -35,14 +37,14 @@ public class AuditLogServiceImpl implements AuditLogService {
     public void registerEvent(Long userId, String message, String typeEvent, String type) {
         log.info("Logging audit event for user ID: {} | Action: {} | Type: {}", userId,typeEvent, type);
 
-        //Buscar el usuario que generó el evento
+
         Users users = usersRepository.findById(userId)
                 .orElseThrow(()-> {
                     log.warn("User not found when registering event. ID: {}", userId);
                     return new ResourceNotFoundException("User not found");
                 });
 
-       //Convertir el tipo (String) a Enum
+
         AuditType auditType;
         try {
             auditType = AuditType.valueOf(type.toUpperCase());
@@ -51,7 +53,7 @@ public class AuditLogServiceImpl implements AuditLogService {
             throw new BusinessException("Invalid audit type : " + type);
         }
 
-        //Crear el log manualmente (no usamos mapper por que no hay DTO)
+
         AuditLog logEntity = new AuditLog();
         logEntity.setUsers(users);
         logEntity.setAction(typeEvent);
@@ -61,7 +63,6 @@ public class AuditLogServiceImpl implements AuditLogService {
        logEntity.setType(auditType);
 
 
-        //guardar en base de datos
         auditLogRepository.save(logEntity);
         log.info("Audit event successfully logged for user ID: {}", userId);
     }

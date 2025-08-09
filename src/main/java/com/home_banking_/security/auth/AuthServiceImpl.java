@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -205,7 +206,7 @@ public class AuthServiceImpl implements AuthService{
             throw new BusinessException("Invalid token format");
         }
 
-        String token = bearerToken.substring(7);
+        String token = bearerToken.substring(7).trim();
 
         logoutRawToken(token);
     }
@@ -241,12 +242,16 @@ public class AuthServiceImpl implements AuthService{
 
 
     private void logoutRawToken(String token){
-        Token storedToken = tokenRepository.findByToken(token)
-                .orElseThrow(()-> new ResourceNotFoundException("Token not found"));
+        Optional<Token> storedToken = tokenRepository.findByToken(token);
 
-        storedToken.setRevoked(true);
-        storedToken.setExpired(true);
-        tokenRepository.save(storedToken);
+        if (storedToken.isPresent()) {
+            Token t = storedToken.get();
+            t.setRevoked(true);
+            t.setExpired(true);
+            tokenRepository.save(t);
+        }else {
+            throw new BusinessException("Token not found");
+        }
     }
 
 

@@ -16,6 +16,8 @@ import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.TransactionService;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.catalina.User;
+import org.aspectj.apache.bcel.classfile.Module;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -81,6 +83,8 @@ public class TransactionServiceImpl implements TransactionService {
         transactionRepository.save(transaction);
         log.info("Transfer completed. Source ID: {} -> destiny ID: {} | Amount: {} | ID transaction: {}",
                 origin.getId(), destination.getId(), amount, transaction.getId());
+
+
 
         return transactionMapper.toDto(transaction);
 

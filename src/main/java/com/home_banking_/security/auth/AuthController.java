@@ -47,14 +47,19 @@ public class AuthController {
     }
 
 
+
+
     @Operation(summary = "Logout ", description = "Revokes the user's current token (logout)")
     @PostMapping("/logout")
     public ResponseEntity<Void> logout (@RequestHeader("Authorization") String bearerToken){
 
-        String token = bearerToken.replace("Bearer", "");
-        authService.logout(token);
+        authService.logout(bearerToken.trim());
         return ResponseEntity.noContent().build();
     }
+
+
+
+
 
     @PutMapping("/change-password")
     @PreAuthorize("isAuthenticated()")

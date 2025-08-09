@@ -9,6 +9,7 @@ import com.home_banking_.model.Users;
 import com.home_banking_.repository.AccountRepository;
 import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.AccountService;
+import com.home_banking_.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class AccountServiceImpl implements AccountService {
     private final AccountRepository accountRepository;
     private final UsersRepository usersRepository;
     private final AccountMapper accountMapper;
+    private final AuditLogService auditLogService;
 
 
 
@@ -127,6 +129,14 @@ public class AccountServiceImpl implements AccountService {
 
         accountRepository.delete(account);
         log.info("Account successfully deleted with ID: {}", id);
+
+
+        auditLogService.registerEvent(
+                account.getUsers().getId(),
+                "Account with alias'" + account.getAlias() + "' deleted",
+                "DELETE_ACCOUNT",
+                "BANKING"
+        );
 
     }
 
