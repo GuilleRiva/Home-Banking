@@ -55,6 +55,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/client/**").hasRole("CLIENT")
                         .requestMatchers("/api/employed/**").hasRole("EMPLOYED")
                         .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("favicon.ico").permitAll()
                         .anyRequest().authenticated()
                 )
                 .build();
