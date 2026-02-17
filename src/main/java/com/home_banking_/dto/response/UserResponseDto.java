@@ -3,7 +3,6 @@ package com.home_banking_.dto.ResponseDto;
 import com.home_banking_.enums.Rol;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -28,14 +27,11 @@ public class UserResponseDto {
     @Email(message = "Email invalid format")
     private String email;
 
-    @Schema(description = "Password for user authentication. Must be at least 8 characters.", example = "StrongPass123")
-    @Size(min = 8, message = "Password must be at least 8 characters")
-    private String password;
 
     @Schema(description = "User register date", example = "2025-07-08T14:35:00")
     private LocalDateTime registrationDate;
 
     @Schema(description = "User role in the system. Possible values: CLIENT, VENDEDOR", example = "CLIENT", implementation = Rol.class)
-    private Rol rol;
+    private String rol;
 
 }
