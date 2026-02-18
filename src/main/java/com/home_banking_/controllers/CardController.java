@@ -44,7 +44,7 @@ public class CardController {
     @GetMapping("/account/{accountId}")
     @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
     public ResponseEntity<List<CardResponseDto>> getCardByAccount(@PathVariable Long accountId){
-        log.info("GET /api/cards/account/{} - Consultying cards associated with the account", accountId);
+        log.info("GET /api/cards/account/{} - Consulting cards associated with the account", accountId);
 
         List<CardResponseDto> cards = cardService.getCardByAccount(accountId);
         log.info("Total cards found for account ID {}: {}", accountId, cards.size());

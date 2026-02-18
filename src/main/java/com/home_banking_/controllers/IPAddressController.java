@@ -122,7 +122,7 @@ public class IPAddressController {
             @Parameter(name = "userID", description = "Unique identifier of the user", required = true)
             @PathVariable Long userId){
 
-        log.info("GET /api/ip/user/{} - Querying IPs associated with the user", userId);
+        log.info("GET /api/ip/user/{} - Fetching IPs associated with the user", userId);
 
         Users users = usersRepository.findById(userId)
                 .orElseThrow(()-> {

@@ -32,10 +32,11 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     public AccountResponseDto createAccount(AccountRequestDto dto) {
-        log.info("Creating a new account for user with ID: {}", dto.getUserId());
 
         Users users = usersRepository.findById(dto.getUserId())
-                .orElseThrow(()-> new ResourceNotFoundException("User not found"));
+                .orElseThrow(()-> new ResourceNotFoundException(
+                        "User not found"
+                ));
 
         Account account= accountMapper.toEntity(dto);
         account.setBalance(BigDecimal.ZERO);
@@ -43,7 +44,6 @@ public class AccountServiceImpl implements AccountService {
         account.setUsers(users);
         accountRepository.save(account);
 
-        log.info("Account created successfully with ID: {}", account.getId());
         return accountMapper.toDto(account);
     }
 
@@ -51,7 +51,6 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     public List<AccountResponseDto> getAll() {
-        log.info("Getting all registered accounts");
 
         List<AccountResponseDto> accounts = accountRepository.findAll()
                 .stream()
@@ -67,15 +66,12 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     public AccountResponseDto getAccountById(Long id) {
-        log.info("Searching account ID: {}", id);
 
         Account account = accountRepository.findById(id)
-                .orElseThrow(()-> {
-                    log.warn("Account not found with ID: {}", id);
-                    return new ResourceNotFoundException("Account not found");
-                });
+                .orElseThrow(()->  new ResourceNotFoundException(
+                        "Account not found"
+                ));
 
-        log.info("Account not found with ID: {}", id);
         return accountMapper.toDto(account);
     }
 
@@ -84,13 +80,11 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     public BigDecimal getBalance(Long accountId) {
-        log.info("Getting account balance with ID: {}",accountId);
 
       Account account = accountRepository.findById(accountId)
-              .orElseThrow(()-> {
-                  log.warn("Account not found when checking balance. ID: {}",accountId);
-                  return new ResourceNotFoundException("Account not found");
-              });
+              .orElseThrow(()-> new ResourceNotFoundException(
+                      "Account not found"
+              ));
 
       log.debug("Current account balance {}: {}", account, account.getBalance());
       return account.getBalance();
@@ -102,15 +96,13 @@ public class AccountServiceImpl implements AccountService {
     @Override
     public AccountResponseDto getAccountByAlias(String alias) {
         String maskedAlias = maskAlias(alias);
-        log.info("Searching account with alias: {}", alias);
+        log.info("Searching account with alias: {}", maskedAlias);
 
        Account account = accountRepository.findByAlias(alias)
-               .orElseThrow(()-> {
-                   log.warn("Account not found with alias: {}", alias);
-                   return new ResourceNotFoundException("Account not found with alias" + alias);
-               });
+               .orElseThrow(()-> new ResourceNotFoundException(
+                       "Account not found "
+                       ));
 
-       log.info("Account found with alias: {}", alias );
        return accountMapper.toDto(account);
     }
 
@@ -122,10 +114,9 @@ public class AccountServiceImpl implements AccountService {
         log.info("Account deletion request with ID: {}", id);
 
         Account account = accountRepository.findById(id)
-                .orElseThrow(()-> {
-                    log.warn("Account not found when trying to delete. ID: {}",id);
-                    return new ResourceNotFoundException("Account not found");
-                });
+                .orElseThrow(()-> new ResourceNotFoundException(
+                        "Account not found"
+                ));
 
         accountRepository.delete(account);
         log.info("Account successfully deleted with ID: {}", id);

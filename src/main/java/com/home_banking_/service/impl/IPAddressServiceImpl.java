@@ -35,13 +35,11 @@ public class IPAddressServiceImpl implements IPAddressService {
 
     @Override
     public IPAddressResponseDto registerIP(IPAddressRequestDto dto) {
-        log.info("IP record requested for userID: {} | IP: {}", dto.getId(), maskIP(dto.getDirectionIP()));
 
         Users users= usersRepository.findById(Long.valueOf(dto.getId()))
-                .orElseThrow(()-> {
-                            log.warn("User not found when registering IP. ID: {}", dto.getId());
-                           return new ResourceNotFoundException("user not found");
-                        });
+                .orElseThrow(()->  new ResourceNotFoundException(
+                        "user not found"
+                ));
 
 
         IPAddress ipAddress = ipAddressMapper.toEntity(dto);
@@ -50,28 +48,24 @@ public class IPAddressServiceImpl implements IPAddressService {
         ipAddress.setUsers(users);
         ipAddressRepository.save(ipAddress);
 
-        log.info("IP successfully registered for userID: {}", dto.getId());
+        log.info("IP  registered for userID: {}", dto.getId());
         return ipAddressMapper.toDTO(ipAddress);
     }
 
 
-
     @Override
     public void makeAsSuspicious(Long ipId) {
-        log.info("Making IP as suspicious. IP ID: {}", ipId);
 
         IPAddress ip = ipAddressRepository.findById(ipId)
-                .orElseThrow(()-> {
-                    log.warn("IP not found when trying to mark as suspicious. ID: {}", ipId);
-                   return new ResourceNotFoundException("IP not found");
-                        });
+                .orElseThrow(()->  new ResourceNotFoundException(
+                        "IP not found"
+                ));
 
         ip.setSuspicious(true);
         ipAddressRepository.save(ip);
 
-        log.info("IP successfully marked as suspicious. ID: {}", ipId);
+        log.info("IP marked as suspicious. ID: {}", ipId);
     }
-
 
 
 
@@ -84,38 +78,28 @@ public class IPAddressServiceImpl implements IPAddressService {
     }
 
 
-
-
     @Override
     public List<IPAddressResponseDto> getIPsByUser(Long userId) {
-        log.info("Obtaining IPs associated with the user ID: {}", userId);
 
         List<IPAddress> ips = ipAddressRepository.findByUsers_Id(userId);
 
-        log.debug("Total IPs found for userID: {}",ips);
         return ips.stream()
                 .map(ipAddressMapper::toDTO)
                 .toList();
     }
 
 
-
-
     @Override
     public void deleteIP(Long ipId) {
-        log.info("IP removal request. ID: {}", ipId);
 
         IPAddress ip = ipAddressRepository.findById(ipId)
-                .orElseThrow(()-> {
-                    log.warn("IP not found when trying to delete. ID: {}", ipId);
-                    return new ResourceNotFoundException("IP not found");
-                });
+                .orElseThrow(()->  new ResourceNotFoundException(
+                        "IP not found"
+                ));
 
         ipAddressRepository.delete(ip);
-        log.info("IP successfully removed. ID: {}", ipId);
-
+        log.info("IP removed. ID: {}", ipId);
     }
-
 
 
     private String maskIP(String ip) {

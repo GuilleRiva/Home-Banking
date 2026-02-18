@@ -12,6 +12,7 @@ import com.home_banking_.repository.LoanRepository;
 import com.home_banking_.service.LoanService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -33,37 +34,32 @@ public class LoanServiceImpl implements LoanService {
     }
 
 
+    @Transactional(readOnly = true)
     @Override
     public LoanResponseDto simulateLoans(LoanRequestDto dto) {
-        log.info("Simulating a loan for an ID account: {} | Amount requested : {} | quotas: {}",
-                dto.getAccountId(), dto.getAmount(), dto.getQuotas());
 
         Account account = accountRepository.findById(dto.getAccountId())
-                .orElseThrow(()-> {
-                        log.warn("Account not found when simulating loan. ID: {}", dto.getAccountId());
-                        return new ResourceNotFoundException( "Account not found");
-                        });
+                .orElseThrow(()->  new ResourceNotFoundException(
+                        "Account not found"
+                ));
 
         Loan simulatedLoan = buildLoanFromDto(dto, account);
 
-        log.info("Simulation completed for account ID: {} | Total to pay: {}",
+        log.info("Simulation completed for accountId: {} | Total to pay: {}",
                 dto.getAccountId(), simulatedLoan.getTotalToPay());
 
         return loanMapper.toDto(simulatedLoan);
     }
 
 
-
+    @Transactional(readOnly = true)
     @Override
     public LoanResponseDto grantLoan(LoanRequestDto dto) {
-        log.info("Granting a loan to an ID account: {} | Amount: {} | Quotas: {}",
-                dto.getAccountId(), dto.getAmount(), dto.getQuotas());
 
         Account account = accountRepository.findById(dto.getAccountId())
-                .orElseThrow(()-> {
-                    log.warn("Account not found when granting loan. ID: {}", dto.getAccountId());
-                    return new ResourceNotFoundException("Account not found");
-                });
+                .orElseThrow(()-> new ResourceNotFoundException(
+                        "Account not found"
+                ));
 
         Loan loan = buildLoanFromDto(dto, account);
         loan.setStatusLoan(StatusLoan.EN_CURSO);
@@ -71,16 +67,16 @@ public class LoanServiceImpl implements LoanService {
         loan.setEndDate(LocalDateTime.now().plusMonths(Long.parseLong(String.valueOf(dto.getQuotas()))));
 
         loanRepository.save(loan);
-        log.info("Loan successfully granted. Account ID: {} | Total to pay: {} | End date: {}",
+        log.info("Loan successfully granted. AccountId: {} | Total to pay: {} | End date: {}",
                 dto.getAccountId(), loan.getTotalToPay(), loan.getEndDate());
 
         return loanMapper.toDto(loan);
     }
 
 
+    @Transactional(readOnly = true)
     @Override
     public Optional<LoanResponseDto> getLoanByAccount(Long accountId) {
-        log.info("Looking for active loan for ID account: {}", accountId);
 
         Optional<Loan> loan = loanRepository.findByAccountId(accountId);
 

@@ -32,30 +32,24 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public UserResponseDto findById(Long id) {
-        log.info("Searching user by ID: {}", id);
 
         Users user = usersRepository.findById(id)
-                .orElseThrow(()-> {
-                    log.warn("User not found. ID: {}", id);
-                   return new ResourceNotFoundException("User not found with ID:" + id);
-                });
+                .orElseThrow(()->  new ResourceNotFoundException(
+                        "User not found with ID:" + id
+                ));
 
-        log.info("User found. ID: {}", id);
         return usersMapper.toDTO(user);
     }
 
 
     @Override
     public UserResponseDto findByEmail(String email) {
-        log.info("Searching user for email: {}",email);
 
         Users users = usersRepository.findByEmail(email)
-                .orElseThrow(()-> {
-                    log.warn("User not found with email: {}", email);
-                   return new ResourceNotFoundException("User not found with email:" + email);
-                });
+                .orElseThrow(()-> new ResourceNotFoundException(
+                        "User not found with email:" + email
+                ));
 
-        log.info("User found with email: {}", email);
         return usersMapper.toDTO(users);
     }
 
@@ -63,7 +57,6 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponseDto createUser(UserRequestDto dto) {
-        log.info("Creating new user with email: {}",dto.getEmail());
 
         Users users = usersMapper.toEntity(dto);
         users.setRegistrationDate(LocalDateTime.now());
@@ -94,13 +87,11 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponseDto save(Long id, @Valid UserResponseDto dto) {
-        log.info("Updating user data ID: {}", id)
-        ;
+
         Users existingUser = usersRepository.findById(id)
-                .orElseThrow(()-> {
-                            log.warn("User not found to update. ID: {}", id);
-                           return new ResourceNotFoundException("User not found with ID:" + id);
-                        });
+                .orElseThrow(()-> new ResourceNotFoundException(
+                        "User not found with ID:" + id
+                ));
 
         existingUser.setName(dto.getName());
         existingUser.setSurname(dto.getSurname());
@@ -116,7 +107,6 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void deleteById(Long id) {
-        log.info("Requesting deletion of user ID: {}", id);
 
         if (!usersRepository.existsById(id)){
             log.warn("Attempt to delete non-existent user. ID: {}", id);

@@ -42,10 +42,6 @@ UsersControllers {
                     content = @Content(mediaType = "application/json",
                             array = @ArraySchema(schema = @Schema(implementation = UserResponseDto.class))))
     })
-
-
-
-
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserResponseDto>> getAll(){
@@ -75,7 +71,7 @@ UsersControllers {
             @Parameter(name = "userId", description = "Unique identifier of the user", required = true)
             @PathVariable Long id){
 
-        log.info("GET /api/users/{} - Searching for user by ID", id);
+        log.info("GET /api/users/{} - Searching for user", id);
 
         UserResponseDto users = userService.findById(id);
         log.info("User not found: {}", users.getEmail());
@@ -87,7 +83,7 @@ UsersControllers {
     @GetMapping("/email/{email}")
     @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
     public ResponseEntity<UserResponseDto> getByEmail(@PathVariable String email){
-        log.info("GET /api/users/email/{} - Searching for user by email",email);
+        log.info("GET /api/users/email/{} - Searching for user",email);
 
         UserResponseDto users= userService.findByEmail(email);
         log.info("User recovered by email: {}", users.getEmail());

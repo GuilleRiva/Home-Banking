@@ -16,6 +16,7 @@ import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.TransactionService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -38,22 +39,19 @@ public class TransactionServiceImpl implements TransactionService {
         this.usersRepository = usersRepository;
     }
 
+    @Transactional
     @Override
     public TransactionResponseDto makeTransfer(TransactionRequestDto dto) {
-        log.info("Initiating transfer. Source account: {} | Account destiny: {} | Amount: {}",
-                dto.getAccountOriginId(), dto.getAccountDestinyId(), dto.getAmount());
 
         Account origin = accountRepository.findById(dto.getAccountOriginId())
-                .orElseThrow(()-> {
-                            log.warn("Source account not found. ID: {}", dto.getAccountOriginId());
-                           return new ResourceNotFoundException("Origin account not found");
-                        });
+                .orElseThrow(()-> new ResourceNotFoundException(
+                        "Origin account not found"
+                ));
 
         Account destination = accountRepository.findById(dto.getAccountDestinyId())
-                .orElseThrow(()-> {
-                    log.warn("Destination account not found. ID: {}", dto.getAccountDestinyId());
-                            return new ResourceNotFoundException("Destination account not found");
-                        });
+                .orElseThrow(()->  new ResourceNotFoundException(
+                        "Destination account not found"
+                ));
 
         BigDecimal amount = dto.getAmount();
 
@@ -88,16 +86,15 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
 
-
+    @Transactional(readOnly = true)
     @Override
     public List<TransactionResponseDto> getTransactionsByAccount(Long accountId) {
         log.info("Querying transactions for ID account: {}", accountId);
 
         Account account = accountRepository.findById(accountId)
-                .orElseThrow(()-> {
-                            log.warn("Account not found when querying transactions. ID: {}", accountId);
-                           return new ResourceNotFoundException("Account not found");
-                        });
+                .orElseThrow(()->  new ResourceNotFoundException(
+                        "Account not found"
+                ));
 
         List<Transaction> transactions = transactionRepository.findByAccountOrigin_Users_IdOrAccountDestiny_Users_Id(accountId, accountId);
 
@@ -109,17 +106,15 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
 
-
-
+    @Transactional(readOnly = true)
     @Override
     public List<TransactionResponseDto> getTransactionsByUser(Long userId) {
         log.info("Querying transactions for user ID: {}", userId);
 
         Users users = usersRepository.findById(userId)
-                .orElseThrow(()-> {
-                            log.warn("User not found when querying transactions. ID: {}", userId);
-                           return new ResourceNotFoundException("User not found");
-                        });
+                .orElseThrow(()-> new ResourceNotFoundException(
+                        "User not found"
+                ));
 
         List<Transaction> transactions = transactionRepository.findByAccountOrigin_Users_IdOrAccountDestiny_Users_Id(userId, userId);
 

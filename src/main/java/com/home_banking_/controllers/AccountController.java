@@ -70,7 +70,7 @@ public class AccountController {
             @Parameter(name = "accountId", description = "Unique identifier of the account", required = true)
             @PathVariable Long accountId){
 
-        log.info("get /api/accounts/{} - Querying account by ID", accountId);
+        log.info("GET /api/accounts/{} - Fetching account", accountId);
         AccountResponseDto account = accountService.getAccountById(accountId);
 
         log.info("Account found. ID: {}", accountId);
@@ -145,7 +145,7 @@ public class AccountController {
             @Parameter(name = "alias", description = "account identifier name", required = true)
             @PathVariable String alias){
 
-        log.info("GET /api/accounts/alias/{} - Querying account by alias", alias);
+        log.info("GET /api/accounts/alias/{} - Querying account ", alias);
         AccountResponseDto account = accountService.getAccountByAlias(alias);
         log.info("Account found with alias: {}", alias);
 

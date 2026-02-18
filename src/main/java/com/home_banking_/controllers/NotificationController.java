@@ -70,7 +70,7 @@ public class NotificationController {
             @Parameter(name = "userId", description = "Unique identifier of the user.", required = true)
             @PathVariable Long userId){
 
-        log.info("GET /api/notifcations/user/{} - Getting notifications from the user", userId);
+        log.info("GET /api/notifications/user/{} - Getting notifications from the user", userId);
         List<NotificationResponseDto> notifications = notificationService.getNotificationByUser(userId);
         log.info("Number of notifications found: {}", notifications.size());
 
@@ -167,7 +167,7 @@ public class NotificationController {
             @Parameter(name = "notificationId", description = "Unique identifier of the notification", required = true)
             @PathVariable Long notificationId){
 
-        log.warn("DELETE /api/notifications/{} - Deteling notification", notificationId);
+        log.warn("DELETE /api/notifications/{} - Deleting notification", notificationId);
         notificationService.deleteNotification(notificationId);
         log.info("Notification {} successfully removed", notificationId);
 

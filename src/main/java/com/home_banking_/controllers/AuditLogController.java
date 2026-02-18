@@ -94,7 +94,7 @@ public class AuditLogController {
             @Parameter(name = "type", description = "Type of logs", required = true)
             @PathVariable String type){
 
-        log.info("GET /api/audit/type/{} - Querying audit logs by type", type);
+        log.info("GET /api/audit/type/{} - Fetching audit logs by type", type);
 
         List<AuditLogResponseDto> logs = auditLogService.getLogsByType(type);
 

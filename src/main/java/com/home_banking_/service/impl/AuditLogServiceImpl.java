@@ -37,12 +37,10 @@ public class AuditLogServiceImpl implements AuditLogService {
     public void registerEvent(Long userId, String message, String typeEvent, String type) {
         log.info("Logging audit event for user ID: {} | Action: {} | Type: {}", userId,typeEvent, type);
 
-
         Users users = usersRepository.findById(userId)
-                .orElseThrow(()-> {
-                    log.warn("User not found when registering event. ID: {}", userId);
-                    return new ResourceNotFoundException("User not found");
-                });
+                .orElseThrow(()->  new ResourceNotFoundException(
+                        "User not found"
+                        ));
 
 
         AuditType auditType;
@@ -69,10 +67,8 @@ public class AuditLogServiceImpl implements AuditLogService {
 
 
 
-
     @Override
     public List<AuditLogResponseDto> getLogsByUser(Long user_id) {
-        log.info("Getting audit logs for user ID: {}", user_id);
 
         List<AuditLog> logs = auditLogRepository.findByUsers_IdOrderByDateTimeDesc(user_id);
         log.debug("Total logs found for user ID {}: {}", user_id, logs.size());
@@ -83,16 +79,14 @@ public class AuditLogServiceImpl implements AuditLogService {
     }
 
 
-
     @Override
     public List<AuditLogResponseDto> getLogsByType(String type) {
-        log.info("Getting audit logs for type {}: ", type);
 
         AuditType auditType;
         try {
             auditType = AuditType.valueOf(type.toUpperCase());
         } catch (IllegalArgumentException e) {
-            log.error("Invalid audit type when querying logs: {}", type);
+            log.error("Invalid audit type when Fetching logs: {}", type);
             throw new BusinessException("Invalid audit type: " + type);
         }
 
