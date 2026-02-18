@@ -1,8 +1,7 @@
 package com.home_banking_.controllers;
 
-import com.home_banking_.dto.RequestDto.UserRequestDto;
-import com.home_banking_.dto.ResponseDto.UserResponseDto;
-import com.home_banking_.model.Users;
+import com.home_banking_.dto.request.UserRequestDto;
+import com.home_banking_.dto.response.UserResponseDto;
 import com.home_banking_.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -27,7 +26,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
-public class UsersControllers {
+public class
+UsersControllers {
 
     private final UserService userService;
 
@@ -42,12 +42,17 @@ public class UsersControllers {
                     content = @Content(mediaType = "application/json",
                             array = @ArraySchema(schema = @Schema(implementation = UserResponseDto.class))))
     })
+
+
+
+
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
-    public ResponseEntity<List<UserResponseDto>> getAllUsers(){
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<UserResponseDto>> getAll(){
+        log.info(">>> ENTER getAllUsers");
         log.info("GET /api/users - Requesting list of all users");
 
-        List<UserResponseDto> users = userService.findAll();
+        var users = userService.findAll();
         log.info("Recovered users: {}", users.size());
 
         return ResponseEntity.ok(users);

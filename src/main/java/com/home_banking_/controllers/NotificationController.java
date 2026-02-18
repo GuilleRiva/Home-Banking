@@ -1,8 +1,7 @@
 package com.home_banking_.controllers;
 
-import com.home_banking_.dto.RequestDto.NotificationRequestDto;
-import com.home_banking_.dto.ResponseDto.NotificationResponseDto;
-import com.home_banking_.model.Notification;
+import com.home_banking_.dto.request.NotificationRequestDto;
+import com.home_banking_.dto.response.NotificationResponseDto;
 import com.home_banking_.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -15,7 +14,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.aspectj.weaver.ast.Not;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;

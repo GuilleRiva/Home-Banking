@@ -1,7 +1,7 @@
 package com.home_banking_.service.impl;
 
-import com.home_banking_.dto.RequestDto.TransactionRequestDto;
-import com.home_banking_.dto.ResponseDto.TransactionResponseDto;
+import com.home_banking_.dto.request.TransactionRequestDto;
+import com.home_banking_.dto.response.TransactionResponseDto;
 import com.home_banking_.enums.StatusTransaction;
 import com.home_banking_.enums.TypeTransaction;
 import com.home_banking_.exceptions.BusinessException;
@@ -14,10 +14,7 @@ import com.home_banking_.repository.AccountRepository;
 import com.home_banking_.repository.TransactionRepository;
 import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.TransactionService;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.catalina.User;
-import org.aspectj.apache.bcel.classfile.Module;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;

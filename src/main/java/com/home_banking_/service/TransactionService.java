@@ -1,10 +1,8 @@
 package com.home_banking_.service;
 
-import com.home_banking_.dto.RequestDto.TransactionRequestDto;
-import com.home_banking_.dto.ResponseDto.TransactionResponseDto;
-import com.home_banking_.model.Transaction;
+import com.home_banking_.dto.request.TransactionRequestDto;
+import com.home_banking_.dto.response.TransactionResponseDto;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 public interface TransactionService {

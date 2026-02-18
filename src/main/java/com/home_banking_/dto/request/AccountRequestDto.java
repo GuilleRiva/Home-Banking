@@ -1,4 +1,4 @@
-package com.home_banking_.dto.RequestDto;
+package com.home_banking_.dto.request;
 
 import com.home_banking_.enums.StatusAccount;
 import com.home_banking_.enums.TypeAccount;

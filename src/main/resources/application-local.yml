@@ -1,26 +1,44 @@
 spring:
+  application:
+    name: home-banking-api
+
   datasource:
-    url: jdbc:mysql://127.0.0.1:3307/banking?useSSL=false&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
-    username: root
-    password: root
+    url: jdbc:mysql://127.0.0.1:3308/banking?useSSL=false&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=utf8mb4
+    username: ${DB_USER:root}
+    password: ${DB_PASS:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+
   flyway:
-    enabled: true
+    enabled: false
     locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
 
 server:
-  port: 8081
+  port: 8080
+  forward-headers-strategy: framework
 
 management:
   server:
     port: 9090
-  endpoints.web.exposure.include: "health,info,metrics,loggers,threaddump,httpexchanges"
-  endpoint.health.show-details: always
-  endpoint.health.show-components: always
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
   health:
-    redis.enabled: false
+    redis:
+      enabled: false
     mongo.enabled: false
     cassandra.enabled: false
     elasticsearch.enabled: false
@@ -33,7 +51,8 @@ management:
 logging:
   level:
     org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.orm.jdbc.bind: TRACE
+    org.hibernate.type.descriptor.jdbc: TRACE
 
 
 

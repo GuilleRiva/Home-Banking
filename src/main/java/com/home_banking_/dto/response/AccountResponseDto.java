@@ -1,8 +1,7 @@
-package com.home_banking_.dto.ResponseDto;
+package com.home_banking_.dto.response;
 
 import com.home_banking_.enums.StatusAccount;
 import com.home_banking_.enums.TypeAccount;
-import com.home_banking_.model.Account;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;

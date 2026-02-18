@@ -1,10 +1,8 @@
 package com.home_banking_.security.auth;
 
-import com.home_banking_.dto.RequestDto.AuditLogRequestDto;
-import com.home_banking_.dto.RequestDto.IPAddressRequestDto;
+import com.home_banking_.dto.request.IPAddressRequestDto;
 import com.home_banking_.dto.auth.ChangePasswordRequest;
 import com.home_banking_.exceptions.BusinessException;
-import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.model.Users;
 import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.security.jwt.JwtService;
@@ -16,20 +14,22 @@ import com.home_banking_.service.AuditLogService;
 import com.home_banking_.service.GeoLocationService;
 import com.home_banking_.service.IPAddressService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.scheduling.annotation.Scheduled;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService{
@@ -54,7 +54,7 @@ public class AuthServiceImpl implements AuthService{
 
         usersRepository.save(users);
 
-        String accessToken = jwtService.generateToken(users);
+        String accessToken = jwtService.generateToken(UserDetailsImpl.build(users));
         String refreshToken = jwtService.generateRefreshToken(users);
 
         savedUserToken(users, accessToken);
@@ -75,107 +75,97 @@ public class AuthServiceImpl implements AuthService{
     }
 
 
-
+    @Transactional
     @Override
     public AuthResponse login(AuthRequest request, String ipAddress) {
 
-
         Users user = usersRepository.findByEmail(request.getEmail())
-                .orElseThrow(()-> new UsernameNotFoundException("User not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        // Verificar que la cuenta esté bloqueada:
+        // 1) Cuenta bloqueada
         if (user.isAccountLocked()) {
             if (Duration.between(user.getLockTime(), LocalDateTime.now()).toMinutes() < 15) {
                 throw new BusinessException("Blocked account. Try later.");
-            }else {
-                // Desbloqueo automatico
+            } else {
                 user.setAccountLocked(false);
                 user.setFailedLoginAttempts(0);
                 usersRepository.save(user);
             }
         }
 
-
-        //Autentica con AuthenticationManager
+        // 2) Autenticar credenciales
         try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            request.getEmail(),
-                            request.getPassword()
-                    )
+            Authentication auth = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
             );
+
+            // 3) Reset de intentos fallidos
+            user.setFailedLoginAttempts(0);
+            usersRepository.save(user);
+
+            // 4) IP sospechosa
+            boolean isSuspicious = ipAddressService.isSuspicious(ipAddress);
+            if (isSuspicious) {
+                auditLogService.registerEvent(
+                        user.getId(),
+                        "Login attempt from suspicious IP: " + ipAddress,
+                        "LOGIN_BLOCKED", "AUTH"
+                );
+                throw new BusinessException("This IP is marked as suspicious. Access denied.");
+            }
+
+            // 5) Registrar IP
+            IPAddressRequestDto dto = new IPAddressRequestDto();
+            dto.setId(String.valueOf(user.getId()));
+            dto.setDirectionIP(ipAddress);
+            ipAddressService.registerIP(dto);
+
+            // 6) Generar tokens usando el principal (UserDetails)
+            UserDetails ud = (UserDetails) auth.getPrincipal(); // ✅ clave
+            String accessToken  = jwtService.generateToken(ud);
+            String refreshToken = jwtService.generateRefreshToken(user);
+
+            log.error("ACCESS TOKEN startsWith={}", accessToken.substring(0, 25));
+            log.error("REFRESH TOKEN startsWith={}", refreshToken.substring(0, 25));
+            log.error("ACCESS exp={}, roles={}", jwtService.extractExpiration(accessToken),
+                    jwtService.debugClaim(accessToken,"roles"));
+
+
+
+            // 7) Revocar tokens previos y guardar el nuevo
+            revokeAllUserTokens(user.getId());
+            savedUserToken(user, accessToken);
+
+            // 8) Auditoría login OK
+            String location = geoLocationService.getLocationFromIP(ipAddress);
+            auditLogService.registerEvent(
+                    user.getId(),
+                    "Successful login from IP: " + ipAddress + " (" + location + ")",
+                    "LOGIN_SUCCESS",
+                    "AUTH"
+            );
+
+            return new AuthResponse(accessToken, refreshToken, "Bearer");
+
         } catch (BadCredentialsException e) {
-            // falló: sumar intento
+            // 9) Manejo de credenciales inválidas
             int attempts = user.getFailedLoginAttempts() + 1;
             user.setFailedLoginAttempts(attempts);
-
             if (attempts >= 3) {
                 user.setAccountLocked(true);
                 user.setLockTime(LocalDateTime.now());
             }
-
             usersRepository.save(user);
 
-            //Registrar intento fallido en AuditLog
-           String message = "Failed login attempt with email:" + request.getEmail()
-                   + " from IP : " + ipAddress;
-
-           auditLogService.registerEvent(
-                   user.getId(),
-                   message,
-                   "LOGIN_FAILED",
-                   "AUTH"
-           );
-
-            throw new BusinessException("Invalids credentials");
+            auditLogService.registerEvent(
+                    user.getId(),
+                    "Failed login attempt with email: " + request.getEmail() + " from IP: " + ipAddress,
+                    "LOGIN_FAILED", "AUTH"
+            );
+            throw new BusinessException("Invalid credentials");
         }
-
-        //Autenticación exitosa: reset contador
-        user.setFailedLoginAttempts(0);
-        usersRepository.save(user);
-
-
-        // Verifico si la IP es sospechosa
-        boolean isSuspicious = ipAddressService.isSuspicious(ipAddress);
-
-
-        if (isSuspicious) {
-            auditLogService.registerEvent(user.getId(),
-                    "Login attempt from suspicios IP:" + ipAddress,
-                    "LOGIN_BLOCKED", "AUTH");
-
-            throw new BusinessException("This IP is marked as suspicious. Access denied.");
-
-        }
-
-        //Registro la IP en base de datos
-        IPAddressRequestDto dto = new IPAddressRequestDto();
-        dto.setId(String.valueOf(user.getId()));
-        dto.setDirectionIP(ipAddress);
-        ipAddressService.registerIP(dto);
-
-
-        // Generar tokens
-        String accessToken = jwtService.generateToken(new UserDetailsImpl(user));
-        String refreshToken = jwtService.generateRefreshToken(user);
-
-        //revocar tokens previos
-        revokeAllUserTokens(user);
-        savedUserToken(user, accessToken);
-
-
-        String location = geoLocationService.getLocationFromIP(ipAddress);
-
-
-        auditLogService.registerEvent(
-                user.getId(),
-                "Successful login from IP: " + ipAddress + "(" + location +")",
-                "LOGIN_SUCCESS",
-                "AUTH");
-
-
-        return new AuthResponse(accessToken, refreshToken, "Bearer");
     }
+
 
 
     @Override
@@ -190,8 +180,8 @@ public class AuthServiceImpl implements AuthService{
         Users user = usersRepository.findByEmail(email)
                 .orElseThrow(()-> new UsernameNotFoundException("User not found"));
 
-        String newAccessToken = jwtService.generateToken(user);
-        revokeAllUserTokens(user);
+        String newAccessToken = jwtService.generateToken(UserDetailsImpl.build(user));
+        revokeAllUserTokens(user.getId());
         savedUserToken(user, newAccessToken);
 
         return new AuthResponse(newAccessToken, refreshToken, "Bearer");
@@ -231,7 +221,7 @@ public class AuthServiceImpl implements AuthService{
         usersRepository.save(user);
 
         //revocar tokens previos
-        revokeAllUserTokens(user);
+        revokeAllUserTokens(user.getId());
 
         String location = geoLocationService.getLocationFromIP(ipAddress);
         auditLogService.registerEvent(user.getId(),
@@ -257,24 +247,11 @@ public class AuthServiceImpl implements AuthService{
 
 
 
-    private void revokeAllUserTokens (Users user){
-        List<Token> validTokens = tokenRepository.findByUser_IdAndExpiredFalseAndRevokedFalse(user.getId());
+    @Transactional
+    public void revokeAllUserTokens (Long userId){
+        var tokens = tokenRepository.findByUser_IdAndExpiredFalseAndRevokedFalse(userId);
+        tokens.forEach(t -> { t.setExpired(true); t.setRevoked(true);});
+        tokenRepository.saveAll(tokens);
 
-        if (validTokens.isEmpty()) return;
-
-        validTokens.forEach(t -> {
-            t.setRevoked(true);
-            t.setExpired(true);
-        });
-
-        tokenRepository.saveAll(validTokens);
-    }
-
-    @Scheduled(cron = "0 0 * * * *") // cada hora
-    public void cleanOldTokens(){
-        List<Token> oldTokens = tokenRepository.findByRevokedTrueOrExpiredTrue();
-        if (!oldTokens.isEmpty()) {
-            tokenRepository.deleteAll(oldTokens);
         }
-    }
 }

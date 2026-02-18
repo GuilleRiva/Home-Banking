@@ -1,7 +1,7 @@
 package com.home_banking_.mappers;
 
-import com.home_banking_.dto.RequestDto.UserRequestDto;
-import com.home_banking_.dto.ResponseDto.UserResponseDto;
+import com.home_banking_.dto.request.UserRequestDto;
+import com.home_banking_.dto.response.UserResponseDto;
 import com.home_banking_.enums.Rol;
 import com.home_banking_.model.Users;
 import org.mapstruct.Mapper;

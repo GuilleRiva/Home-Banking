@@ -1,4 +1,4 @@
-package com.home_banking_.dto.RequestDto;
+package com.home_banking_.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;

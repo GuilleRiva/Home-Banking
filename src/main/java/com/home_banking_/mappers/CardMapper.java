@@ -1,7 +1,7 @@
 package com.home_banking_.mappers;
 
-import com.home_banking_.dto.RequestDto.CardRequestDto;
-import com.home_banking_.dto.ResponseDto.CardResponseDto;
+import com.home_banking_.dto.request.CardRequestDto;
+import com.home_banking_.dto.response.CardResponseDto;
 import com.home_banking_.enums.StatusCard;
 import com.home_banking_.enums.TypeCard;
 import com.home_banking_.model.Card;

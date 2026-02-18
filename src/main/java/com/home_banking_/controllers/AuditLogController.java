@@ -1,6 +1,6 @@
 package com.home_banking_.controllers;
 
-import com.home_banking_.dto.ResponseDto.AuditLogResponseDto;
+import com.home_banking_.dto.response.AuditLogResponseDto;
 import com.home_banking_.service.AuditLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

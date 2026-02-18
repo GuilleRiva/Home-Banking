@@ -1,4 +1,4 @@
-package com.home_banking_.dto.ResponseDto;
+package com.home_banking_.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;

@@ -1,4 +1,4 @@
-package com.home_banking_.dto.ResponseDto;
+package com.home_banking_.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.home_banking_.enums.StatusLoan;
@@ -7,7 +7,6 @@ import jakarta.validation.constraints.DecimalMin;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.antlr.v4.runtime.DefaultErrorStrategy;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

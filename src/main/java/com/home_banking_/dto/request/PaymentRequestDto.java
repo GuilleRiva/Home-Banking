@@ -1,4 +1,4 @@
-package com.home_banking_.dto.RequestDto;
+package com.home_banking_.dto.request;
 
 import com.home_banking_.enums.ServiceEntity;
 import com.home_banking_.enums.StatusPayment;

@@ -1,8 +1,7 @@
 package com.home_banking_.service;
 
-import com.home_banking_.dto.RequestDto.AccountRequestDto;
-import com.home_banking_.dto.ResponseDto.AccountResponseDto;
-import com.home_banking_.model.Account;
+import com.home_banking_.dto.request.AccountRequestDto;
+import com.home_banking_.dto.response.AccountResponseDto;
 
 import java.math.BigDecimal;
 import java.util.List;

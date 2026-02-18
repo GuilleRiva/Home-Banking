@@ -1,7 +1,7 @@
 package com.home_banking_.service.impl;
 
-import com.home_banking_.dto.RequestDto.AccountRequestDto;
-import com.home_banking_.dto.ResponseDto.AccountResponseDto;
+import com.home_banking_.dto.request.AccountRequestDto;
+import com.home_banking_.dto.response.AccountResponseDto;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.mappers.AccountMapper;
 import com.home_banking_.model.Account;

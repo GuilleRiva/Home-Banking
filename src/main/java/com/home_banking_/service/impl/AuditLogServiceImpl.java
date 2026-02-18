@@ -1,6 +1,6 @@
 package com.home_banking_.service.impl;
 
-import com.home_banking_.dto.ResponseDto.AuditLogResponseDto;
+import com.home_banking_.dto.response.AuditLogResponseDto;
 import com.home_banking_.enums.AuditType;
 import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.exceptions.ResourceNotFoundException;

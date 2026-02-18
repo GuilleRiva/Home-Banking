@@ -1,7 +1,6 @@
-package com.home_banking_.dto.ResponseDto;
+package com.home_banking_.dto.response;
 
 import com.home_banking_.enums.MovementAccountType;
-import com.home_banking_.enums.StatusPayment;
 import com.home_banking_.enums.StatusTransaction;
 import com.home_banking_.enums.TypeTransaction;
 import io.swagger.v3.oas.annotations.media.Schema;

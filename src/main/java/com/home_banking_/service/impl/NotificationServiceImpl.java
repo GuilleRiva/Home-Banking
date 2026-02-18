@@ -1,7 +1,7 @@
 package com.home_banking_.service.impl;
 
-import com.home_banking_.dto.RequestDto.NotificationRequestDto;
-import com.home_banking_.dto.ResponseDto.NotificationResponseDto;
+import com.home_banking_.dto.request.NotificationRequestDto;
+import com.home_banking_.dto.response.NotificationResponseDto;
 import com.home_banking_.enums.TypeNotification;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.mappers.NotificationMapper;
@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 

@@ -1,4 +1,4 @@
-package com.home_banking_.dto.RequestDto;
+package com.home_banking_.dto.request;
 
 import com.home_banking_.enums.StatusCard;
 import com.home_banking_.enums.TypeCard;

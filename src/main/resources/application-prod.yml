@@ -3,22 +3,36 @@ spring:
     url: ${DB_URL}
     username: ${DB_USER}
     password: ${DB_PASS}
+    driven-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: ${DB_POOL_MIN:2}
+      connection-timeout: ${DB_CONN_TIMEOUT_MS:30000}
+      idle-timeout: ${DB_IDLE_TIMEOUT_MS:600000}
+      max-lifetime: ${DB_MAX_LIFETIME_MS:1800000}
+
   jpa:
     open-in-view: false
+    hibernate:
+        ddl-auto: validate
     properties:
       hibernate:
         jdbc:
           time_zone: UTC
+
   flyway:
     enabled: true
     locations: classpath:db/migration
 
 server:
   port: ${SERVER_PORT:8080}
+  forward-headers-strategy: framework
   compression:
     enabled: true
     mime-types: "application/json,text/plain"
     min-response-size: 1024
+  tomcat:
+    connection-timeout: 10s
 
 management:
   endpoints:

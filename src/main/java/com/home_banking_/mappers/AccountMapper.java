@@ -1,7 +1,7 @@
 package com.home_banking_.mappers;
 
-import com.home_banking_.dto.RequestDto.AccountRequestDto;
-import com.home_banking_.dto.ResponseDto.AccountResponseDto;
+import com.home_banking_.dto.request.AccountRequestDto;
+import com.home_banking_.dto.response.AccountResponseDto;
 import com.home_banking_.enums.StatusAccount;
 import com.home_banking_.enums.TypeAccount;
 import com.home_banking_.model.Account;

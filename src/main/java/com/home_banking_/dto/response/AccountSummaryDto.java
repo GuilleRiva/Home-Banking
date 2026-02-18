@@ -1,4 +1,4 @@
-package com.home_banking_.dto.ResponseDto;
+package com.home_banking_.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

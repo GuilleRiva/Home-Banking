@@ -8,6 +8,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
+@Table(name = "token", indexes = {
+        @Index(name = "idx_token_user_valid", columnList = "user_id")
+}, uniqueConstraints = @UniqueConstraint(name = "uq_token", columnNames = "token"))
 @Data
 @Builder
 @AllArgsConstructor
@@ -18,10 +21,12 @@ public class Token {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true)
+    @Column(nullable = false, length = 512)
     private String token;
 
+    @Column(nullable = false)
     private boolean revoked;
+    @Column(nullable = false)
     private boolean expired;
 
     @Enumerated(EnumType.STRING)

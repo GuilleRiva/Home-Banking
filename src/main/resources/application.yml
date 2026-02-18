@@ -1,15 +1,19 @@
 server:
   port: 8080
 
+spring:
+  application:
+    name: home-banking-api
+  jpa:
+    open-in-view: false
+
 management:
   endpoints:
     web:
       exposure:
-        include: "*"
-  endpoint:
-    prometheus:
-      enabled: true
-metrics:
-  export:
-    prometheus:
-      enabled: true
+        include: "health,info"
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+

@@ -1,7 +1,7 @@
 package com.home_banking_.mappers;
 
-import com.home_banking_.dto.RequestDto.LoanRequestDto;
-import com.home_banking_.dto.ResponseDto.LoanResponseDto;
+import com.home_banking_.dto.request.LoanRequestDto;
+import com.home_banking_.dto.response.LoanResponseDto;
 import com.home_banking_.enums.StatusLoan;
 import com.home_banking_.model.Loan;
 import org.mapstruct.Mapper;

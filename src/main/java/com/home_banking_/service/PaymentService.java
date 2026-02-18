@@ -1,9 +1,8 @@
 package com.home_banking_.service;
 
-import com.home_banking_.dto.RequestDto.PaymentRequestDto;
-import com.home_banking_.dto.ResponseDto.PaymentResponseDto;
+import com.home_banking_.dto.request.PaymentRequestDto;
+import com.home_banking_.dto.response.PaymentResponseDto;
 import com.home_banking_.enums.ServiceEntity;
-import com.home_banking_.model.Payment;
 
 import java.util.List;
 

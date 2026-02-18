@@ -7,7 +7,7 @@ public class PasswordGenerator {
 
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
-        String[] passwords = {"123456", "adminpass", "cliente1", "usuarioABC"};
+        String[] passwords = {"cuervo", "fiesta", "piojos", "goat10", "patron"};
 
         for (String pwd : passwords){
             String hash = encoder.encode(pwd);

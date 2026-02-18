@@ -1,7 +1,7 @@
 package com.home_banking_.controllers;
 
-import com.home_banking_.dto.RequestDto.IPAddressRequestDto;
-import com.home_banking_.dto.ResponseDto.IPAddressResponseDto;
+import com.home_banking_.dto.request.IPAddressRequestDto;
+import com.home_banking_.dto.response.IPAddressResponseDto;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.model.Users;
 import com.home_banking_.repository.UsersRepository;

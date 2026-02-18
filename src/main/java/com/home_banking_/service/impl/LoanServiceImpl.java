@@ -1,9 +1,8 @@
 package com.home_banking_.service.impl;
 
-import com.home_banking_.dto.RequestDto.LoanRequestDto;
-import com.home_banking_.dto.ResponseDto.LoanResponseDto;
+import com.home_banking_.dto.request.LoanRequestDto;
+import com.home_banking_.dto.response.LoanResponseDto;
 import com.home_banking_.enums.StatusLoan;
-import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.mappers.LoanMapper;
 import com.home_banking_.model.Account;

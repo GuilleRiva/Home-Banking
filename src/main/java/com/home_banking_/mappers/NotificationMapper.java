@@ -1,7 +1,7 @@
 package com.home_banking_.mappers;
 
-import com.home_banking_.dto.RequestDto.NotificationRequestDto;
-import com.home_banking_.dto.ResponseDto.NotificationResponseDto;
+import com.home_banking_.dto.request.NotificationRequestDto;
+import com.home_banking_.dto.response.NotificationResponseDto;
 import com.home_banking_.enums.TypeNotification;
 import com.home_banking_.model.Notification;
 import org.mapstruct.Mapper;

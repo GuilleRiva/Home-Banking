@@ -1,7 +1,7 @@
 package com.home_banking_.controllers;
 
-import com.home_banking_.dto.RequestDto.TransactionRequestDto;
-import com.home_banking_.dto.ResponseDto.TransactionResponseDto;
+import com.home_banking_.dto.request.TransactionRequestDto;
+import com.home_banking_.dto.response.TransactionResponseDto;
 import com.home_banking_.service.TransactionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

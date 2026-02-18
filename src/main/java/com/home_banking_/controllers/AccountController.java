@@ -1,7 +1,7 @@
 package com.home_banking_.controllers;
 
-import com.home_banking_.dto.RequestDto.AccountRequestDto;
-import com.home_banking_.dto.ResponseDto.AccountResponseDto;
+import com.home_banking_.dto.request.AccountRequestDto;
+import com.home_banking_.dto.response.AccountResponseDto;
 import com.home_banking_.service.AccountService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

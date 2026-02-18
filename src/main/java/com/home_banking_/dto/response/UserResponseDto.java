@@ -1,4 +1,4 @@
-package com.home_banking_.dto.ResponseDto;
+package com.home_banking_.dto.response;
 
 import com.home_banking_.enums.Rol;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -32,6 +32,6 @@ public class UserResponseDto {
     private LocalDateTime registrationDate;
 
     @Schema(description = "User role in the system. Possible values: CLIENT, VENDEDOR", example = "CLIENT", implementation = Rol.class)
-    private String rol;
+    private Rol rol;
 
 }

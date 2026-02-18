@@ -1,12 +1,10 @@
 package com.home_banking_.mappers;
 
-import com.home_banking_.dto.RequestDto.TransactionRequestDto;
-import com.home_banking_.dto.ResponseDto.TransactionResponseDto;
-import com.home_banking_.enums.MovementAccountType;
+import com.home_banking_.dto.request.TransactionRequestDto;
+import com.home_banking_.dto.response.TransactionResponseDto;
 import com.home_banking_.enums.StatusTransaction;
 import com.home_banking_.enums.TypeTransaction;
 import com.home_banking_.model.Transaction;
-import jdk.jfr.Name;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;

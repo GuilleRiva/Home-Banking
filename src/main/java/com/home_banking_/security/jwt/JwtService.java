@@ -1,38 +1,41 @@
 package com.home_banking_.security.jwt;
 
 import com.home_banking_.model.Users;
-import com.home_banking_.security.user.UserDetailsImpl;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
-
 import javax.crypto.SecretKey;
-import java.security.Key;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
+
 
 @Service
 public class JwtService {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtService.class);
     @Value("${jwt.secret}")
     private String secret;
 
-    private SecretKey getSecretKey() {
-        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
+    @Value("${application.security.jwt.expiration-ms:900000}")
+    private long accessExpirationMs;
+
+    @Value("${application.security.jwt.refresh-token.expiration-ms:1296000000}")
+    private long refreshExpiration;
+
+
+    private SecretKey getSigningKey() {
+        byte[] keyBytes = Decoders.BASE64.decode(secret);
+        return Keys.hmacShaKeyFor(keyBytes);
     }
-
-    @Value("${application.security.jwt.expiration}")
-    private final long EXPIRATION_TIME = 1000 * 60 * 15;
-
-    @Value("${application.security.jwt.refresh-token.expiration}")
-    private Long refreshExpiration;
 
     public String extractUsername (String token) {
         return extractClaim(token, Claims::getSubject); // getSubject = email
@@ -43,36 +46,56 @@ public class JwtService {
     }
 
     public <T> T extractClaim (String token, Function<Claims, T> resolver){
-        final Claims claims = extractAllClaims(token);
+        Claims claims = extractAllClaims(token);
         return resolver.apply(claims);
     }
 
+
+
     public String generateToken(UserDetails userDetails) {
+        log.error("### generateToken(UserDetails) CALLED ### subject={}, expMs={}",
+                userDetails.getUsername(),accessExpirationMs);
         Map<String, Object> claims = new HashMap<>();
-        claims.put("role", userDetails.getAuthorities());
-        return createToken(claims,userDetails.getUsername());
-    }
+        claims.put("roles", userDetails.getAuthorities()
+                .stream()
+                .map(GrantedAuthority::getAuthority)
+                .toList());
 
-    private String createToken(Map<String, Object> claims, String subject){
-        Date now = new Date();
-        Date expiration = new Date(now.getTime() + EXPIRATION_TIME);
-
+        long now = System.currentTimeMillis();
         return Jwts.builder()
                 .setClaims(claims)
-                .setSubject(subject)
-                .setIssuedAt(now)
+                .setSubject(userDetails.getUsername())
+                .setIssuedAt(new Date(now))
+                .setExpiration(new Date(now + accessExpirationMs))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    public boolean isTokenValid(String token, UserDetails userDetails){
-        final String username = extractUsername(token);
-        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+    private String createToken(Map<String, Object> claims, String subject, long expirationMs){
+        long now = System.currentTimeMillis();
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(subject)
+                .setIssuedAt(new Date(now))
+                .setExpiration(new Date(now  + expirationMs))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public boolean isTokenValid(String token){
+       try {
+           String username = extractUsername(token);
+           return username != null && !isTokenExpired(token);
+       } catch (JwtException | IllegalArgumentException e) {
+           return false;
+       }
     }
 
 
-    private boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
+   private boolean isTokenExpired(String token) {
+        Date exp = extractExpiration(token);
+        if (exp == null) return true;
+        return exp.before(new Date());
     }
 
     private Claims extractAllClaims(String token) {
@@ -83,29 +106,27 @@ public class JwtService {
                 .getBody();
     }
 
-    private Key getSigningKey(){
-        byte[] keyBytes = Decoders.BASE64.decode(secret);
-        return Keys.hmacShaKeyFor(keyBytes);
+    public Object debugClaim(String token, String key) {
+        return extractAllClaims(token).get(key);
     }
 
 
     public String generateRefreshToken (Users user){
-        return Jwts.builder()
-                .setSubject(user.getEmail())
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + refreshExpiration))
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
-                .compact();
+        return createToken(Map.of(), user.getEmail(), refreshExpiration);
     }
 
 
-    public String generateToken (Users user){
-        UserDetails userDetails = new UserDetailsImpl(user);
+    public List<String> getRoles(String token) {
+        var claims = extractAllClaims(token);
+        Object roles = claims.get("roles");
 
-        return generateToken(userDetails);
+        if (roles instanceof List<?> list) {
+            return list.stream()
+                    .filter(String.class::isInstance)
+                    .map(String.class::cast)
+                    .toList();
+        }
+        return Collections.emptyList();
     }
 
-    public boolean isTokenValid (String token) {
-        return !isTokenExpired(token);
-    }
 }

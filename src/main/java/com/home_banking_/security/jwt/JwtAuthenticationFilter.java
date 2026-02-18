@@ -1,14 +1,16 @@
 package com.home_banking_.security.jwt;
 
+import com.home_banking_.security.token.TokenRepository;
 import com.home_banking_.security.user.UserDetailsServiceImpl;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -24,6 +26,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsServiceImpl userDetailsService;
+    private final TokenRepository tokenRepo;
 
     @Override
     protected void doFilterInternal(
@@ -31,49 +34,79 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
-        final String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-        final  String jwt;
-        final String userEmail;
 
+        // Endpoints públicos o que no requieren JWT
+        String path = request.getRequestURI();
 
-        // 1. Verifica si hay un token en el header
-        if (authHeader == null || !authHeader.startsWith("Bearer")){
+        if (path.startsWith("/api/auth/") ||
+        path.startsWith("/v3/api-docs") ||
+        path.startsWith("/swagger-ui") ||
+        "OPTIONS".equalsIgnoreCase(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        jwt = authHeader.substring(7); //Elimina el 'Bearer' y deja el token
-        userEmail = jwtService.extractUsername(jwt); //Método que extrae el email del token
-
-
-        //2. Si el usuario está autenticado, no sigue
-        if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
-
-
-        //3. Verifica si el token es válido para ese usuario
-        if (jwtService.isTokenValid(jwt, userDetails)) {
-
-
-            //4. Crea un objeto de autenticación para Spring Security
-            UsernamePasswordAuthenticationToken authenticationToken =
-                    new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null,
-                            userDetails.getAuthorities()
-                    );
-
-            authenticationToken.setDetails(
-                    new WebAuthenticationDetailsSource().buildDetails(request)
-            );
-
-
-            //5. Establece el usuario  autenticado en el contexto de Spring
-            SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-        }
+        // Leer extraer
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            filterChain.doFilter(request, response);
+                    return;
         }
 
-        //6. Continúa con la cadena de filtros
-        filterChain.doFilter(request,response);
+        // Extraer JWT
+        String jwt = authHeader.substring(authHeader.lastIndexOf(" ") + 1);
+
+        System.out.println(">>> JWT PARA VALIDAR: [" + jwt + " ]");
+
+        if (jwt.isEmpty()) {
+            filterChain.doFilter(request,response);
+            return;
+        }
+
+
+        try {
+            // Extraer subject (username/email)
+             String username = jwtService.extractUsername(jwt);
+
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+
+                // Verificación criptografica + expiracion
+                boolean cryptoValid = jwtService.isTokenValid(jwt);
+
+                // validación de revocación/expiración en DB
+                boolean dbValid = tokenRepo.existsByTokenAndExpiredFalseAndRevokedFalse(jwt);
+
+                if (cryptoValid  && dbValid) {
+
+                    //Cargar usuario
+                    UserDetails ud = userDetailsService.loadUserByUsername(username);
+
+                    //Authorities.
+                    var auth = new UsernamePasswordAuthenticationToken(ud, null ,ud.getAuthorities());
+
+                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+
+                    log.info("JWT OK: principal={}, authorities={}", username, ud.getAuthorities());
+                } else {
+                    log.debug("JWT inválido : cryptoValid={}, dbValid={}, path={}",
+                            cryptoValid, dbValid, path);
+                }
+
+            }
+
+            //Continuar cadena
+            filterChain.doFilter(request, response);
+
+        } catch (JwtException | IllegalArgumentException e) {
+            // Token mal formado / expirado / firma inválida
+            log.debug("JWT exception : {}",  e.getMessage());
+            SecurityContextHolder.clearContext();
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
+
+            // No lancemos runtime; dejamos que EntryPoint responda 401
+        }
+
+
     }
 }

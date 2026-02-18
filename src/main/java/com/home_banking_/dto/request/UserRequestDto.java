@@ -1,9 +1,7 @@
-package com.home_banking_.dto.RequestDto;
+package com.home_banking_.dto.request;
 
 import com.home_banking_.enums.Rol;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

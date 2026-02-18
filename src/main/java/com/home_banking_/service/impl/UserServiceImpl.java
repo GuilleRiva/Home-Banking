@@ -1,7 +1,7 @@
 package com.home_banking_.service.impl;
 
-import com.home_banking_.dto.RequestDto.UserRequestDto;
-import com.home_banking_.dto.ResponseDto.UserResponseDto;
+import com.home_banking_.dto.request.UserRequestDto;
+import com.home_banking_.dto.response.UserResponseDto;
 import com.home_banking_.enums.Rol;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.mappers.UsersMapper;
@@ -11,9 +11,11 @@ import com.home_banking_.service.UserService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
+
 
 @Slf4j
 @Service
@@ -28,6 +30,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public UserResponseDto findById(Long id) {
         log.info("Searching user by ID: {}", id);
 
@@ -40,6 +43,7 @@ public class UserServiceImpl implements UserService {
         log.info("User found. ID: {}", id);
         return usersMapper.toDTO(user);
     }
+
 
     @Override
     public UserResponseDto findByEmail(String email) {
@@ -72,15 +76,18 @@ public class UserServiceImpl implements UserService {
 
 
     @Override
+    @Transactional(readOnly = true)
     public List<UserResponseDto> findAll() {
-        log.info("Querying all registered users");
-
-        List<UserResponseDto> result = usersRepository.findAll().stream()
-                .map(usersMapper::toDTO)
-                .collect(Collectors.toList());
-
-        log.info("Total users found: {}", result.size());
-        return result;
+        return usersRepository.findAll().stream()
+                .map(u -> new UserResponseDto(
+                        u.getId(),
+                        u.getName(),
+                        u.getSurname(),
+                        u.getEmail(),
+                        u.getRegistrationDate(),
+                        u.getRol()
+                ))
+                .toList();
     }
 
 
@@ -98,7 +105,6 @@ public class UserServiceImpl implements UserService {
         existingUser.setName(dto.getName());
         existingUser.setSurname(dto.getSurname());
         existingUser.setEmail(dto.getEmail());
-        existingUser.setPassword(dto.getPassword());
         existingUser.setRol(Rol.valueOf(String.valueOf(dto
                 .getRol())));
 

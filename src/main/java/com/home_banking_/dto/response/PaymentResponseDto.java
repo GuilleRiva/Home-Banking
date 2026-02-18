@@ -1,4 +1,4 @@
-package com.home_banking_.dto.ResponseDto;
+package com.home_banking_.dto.response;
 
 import com.home_banking_.enums.MovementAccountType;
 import com.home_banking_.enums.ServiceEntity;

@@ -38,8 +38,7 @@ public class Account {
     @OneToMany(mappedBy = "accountOrigin")
     private List<Transaction> transactionOrigin;
 
-    @OneToMany(mappedBy = "accountDestiny")
-    private List<Transaction> transactionDestiny;
+
 
     @OneToMany(mappedBy = "account")
     private List<Loan> loans;

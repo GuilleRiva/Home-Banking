@@ -1,6 +1,6 @@
 package com.home_banking_.controllers;
 
-import com.home_banking_.dto.ResponseDto.CardResponseDto;
+import com.home_banking_.dto.response.CardResponseDto;
 import com.home_banking_.enums.TypeCard;
 import com.home_banking_.service.CardService;
 import io.swagger.v3.oas.annotations.Operation;

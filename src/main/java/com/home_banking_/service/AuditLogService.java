@@ -1,6 +1,6 @@
 package com.home_banking_.service;
 
-import com.home_banking_.dto.ResponseDto.AuditLogResponseDto;
+import com.home_banking_.dto.response.AuditLogResponseDto;
 
 import java.util.List;
 

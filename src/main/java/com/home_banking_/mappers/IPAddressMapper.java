@@ -1,7 +1,7 @@
 package com.home_banking_.mappers;
 
-import com.home_banking_.dto.RequestDto.IPAddressRequestDto;
-import com.home_banking_.dto.ResponseDto.IPAddressResponseDto;
+import com.home_banking_.dto.request.IPAddressRequestDto;
+import com.home_banking_.dto.response.IPAddressResponseDto;
 import com.home_banking_.model.IPAddress;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

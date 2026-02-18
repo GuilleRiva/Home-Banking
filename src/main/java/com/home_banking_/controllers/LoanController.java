@@ -1,7 +1,7 @@
 package com.home_banking_.controllers;
 
-import com.home_banking_.dto.RequestDto.LoanRequestDto;
-import com.home_banking_.dto.ResponseDto.LoanResponseDto;
+import com.home_banking_.dto.request.LoanRequestDto;
+import com.home_banking_.dto.response.LoanResponseDto;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.service.LoanService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,7 +19,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.w3c.dom.ranges.RangeException;
 
 @Slf4j
 @Tag(name= "Loan controller", description = "User Loan management")
