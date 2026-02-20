@@ -5,7 +5,7 @@ import com.home_banking_.dto.auth.ChangePasswordRequest;
 import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.model.Users;
 import com.home_banking_.repository.UsersRepository;
-import com.home_banking_.security.jwt.JwtService;
+import com.home_banking_.service.impl.JwtService;
 import com.home_banking_.security.token.Token;
 import com.home_banking_.security.token.TokenRepository;
 import com.home_banking_.security.token.TokenType;

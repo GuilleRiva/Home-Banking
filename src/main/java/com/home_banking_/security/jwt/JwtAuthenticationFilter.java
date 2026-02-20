@@ -2,6 +2,7 @@ package com.home_banking_.security.jwt;
 
 import com.home_banking_.security.token.TokenRepository;
 import com.home_banking_.security.user.UserDetailsServiceImpl;
+import com.home_banking_.service.impl.JwtService;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -10,7 +11,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -54,9 +54,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         // Extraer JWT
-        String jwt = authHeader.substring(authHeader.lastIndexOf(" ") + 1);
+        String jwt = authHeader.substring(7);  // "Bearer " .lenght()
 
-        System.out.println(">>> JWT PARA VALIDAR: [" + jwt + " ]");
+        log.debug("JWT received: ...{}", jwt.length() > 6 ? jwt.substring(jwt.length()-6) : jwt);
 
         if (jwt.isEmpty()) {
             filterChain.doFilter(request,response);

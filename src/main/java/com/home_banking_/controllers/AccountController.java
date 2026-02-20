@@ -1,6 +1,6 @@
 package com.home_banking_.controllers;
 
-import com.home_banking_.dto.request.AccountRequestDto;
+import com.home_banking_.dto.request.AccountCreateRequestDto;
 import com.home_banking_.dto.response.AccountResponseDto;
 import com.home_banking_.service.AccountService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -117,7 +117,7 @@ public class AccountController {
             @ApiResponse(responseCode = "400", description = "Invalid request")
     })
     @PostMapping
-    public ResponseEntity<AccountResponseDto>createAccount(@RequestBody @Valid AccountRequestDto dto){
+    public ResponseEntity<AccountResponseDto>createAccount(@RequestBody @Valid AccountCreateRequestDto dto){
         log.info("POST /api/accounts - Creating account for user ID: {}", createAccount(dto));
 
         AccountResponseDto created = accountService.createAccount(dto);

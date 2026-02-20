@@ -1,6 +1,6 @@
 package com.home_banking_.mappers;
 
-import com.home_banking_.dto.request.AccountRequestDto;
+import com.home_banking_.dto.request.AccountCreateRequestDto;
 import com.home_banking_.dto.response.AccountResponseDto;
 import com.home_banking_.enums.StatusAccount;
 import com.home_banking_.enums.TypeAccount;
@@ -24,7 +24,7 @@ public interface AccountMapper {
     @Mapping(target = "creationDate", ignore = true)
     @Mapping(source = "typeAccount", target = "typeAccount", qualifiedByName = "stringToTypeAccount")
     @Mapping(source = "statusAccount", target = "statusAccount", qualifiedByName = "stringToStatusAccount")
-    Account toEntity(AccountRequestDto dto);
+    Account toEntity(AccountCreateRequestDto dto);
 
     //convert Enum -> String
     @Named("typeAccountToString")

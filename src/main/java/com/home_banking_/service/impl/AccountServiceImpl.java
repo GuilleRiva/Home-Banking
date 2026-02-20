@@ -1,7 +1,9 @@
 package com.home_banking_.service.impl;
 
-import com.home_banking_.dto.request.AccountRequestDto;
+import com.home_banking_.dto.request.AccountCreateRequestDto;
 import com.home_banking_.dto.response.AccountResponseDto;
+import com.home_banking_.enums.StatusAccount;
+import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.mappers.AccountMapper;
 import com.home_banking_.model.Account;
@@ -12,11 +14,14 @@ import com.home_banking_.service.AccountService;
 import com.home_banking_.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
 @Service
@@ -28,25 +33,58 @@ public class AccountServiceImpl implements AccountService {
     private final AccountMapper accountMapper;
     private final AuditLogService auditLogService;
 
-
-
+    @Transactional
     @Override
-    public AccountResponseDto createAccount(AccountRequestDto dto) {
+    public AccountResponseDto createAccount(AccountCreateRequestDto dto) {
 
-        Users users = usersRepository.findById(dto.getUserId())
-                .orElseThrow(()-> new ResourceNotFoundException(
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        Users users = usersRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException(
                         "User not found"
                 ));
 
-        Account account= accountMapper.toEntity(dto);
+        // validar alias único por usuario
+        if (accountRepository.existsByUsersIdAndAliasIgnoreCase(users.getId(), dto.getAlias())) {
+            throw new BusinessException("Alias already in use");
+        }
+
+        Account account = accountMapper.toEntity(dto);
+        account.setUsers(users);
         account.setBalance(BigDecimal.ZERO);
         account.setCreationDate(LocalDateTime.now());
-        account.setUsers(users);
+        account.setStatusAccount(StatusAccount.ACTIVE);
+
+        // Generación backend
+        account.setAccountNumber(generateUniqueAccountNumber());
+        account.setCBU(generateUniqueCbu());
+
         accountRepository.save(account);
 
         return accountMapper.toDto(account);
     }
 
+    private String generateUniqueAccountNumber() {
+        String number;
+        do {
+            number = String.valueOf(ThreadLocalRandom.current()
+                    .nextLong(100000000L, 999999999L));
+        } while (accountRepository.existsByAccountNumber(number));
+
+        return number;
+    }
+
+    private String generateUniqueCbu(){
+        String cbu;
+        do {
+            cbu = String.valueOf(ThreadLocalRandom.current()
+                    .nextLong(1_000_000_000_000_000_000L, 9_999_999_999_999_999_99L));
+        }while (accountRepository.existsByCBU(cbu));
+
+        return cbu;
+    }
 
 
     @Override

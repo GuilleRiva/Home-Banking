@@ -10,4 +10,8 @@ import java.util.Optional;
 public interface AccountRepository extends JpaRepository<Account, Long> {
 
     Optional<Account> findByAlias(String alias);
+
+    boolean existsByUsersIdAndAliasIgnoreCase(Long userId, String alias);
+    boolean existsByAccountNumber(String accountNumber);
+    boolean existsByCBU(String cbu);
 }

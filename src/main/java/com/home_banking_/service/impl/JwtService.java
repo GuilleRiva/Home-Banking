@@ -1,4 +1,4 @@
-package com.home_banking_.security.jwt;
+package com.home_banking_.service.impl;
 
 import com.home_banking_.model.Users;
 import io.jsonwebtoken.Claims;
@@ -53,7 +53,7 @@ public class JwtService {
 
 
     public String generateToken(UserDetails userDetails) {
-        log.error("### generateToken(UserDetails) CALLED ### subject={}, expMs={}",
+        log.info("### generateToken(UserDetails) CALLED ### subject={}, expMs={}",
                 userDetails.getUsername(),accessExpirationMs);
         Map<String, Object> claims = new HashMap<>();
         claims.put("roles", userDetails.getAuthorities()
