@@ -1,9 +1,12 @@
 package com.home_banking_.service.impl;
 
-import com.home_banking_.dto.request.TransactionRequestDto;
+import com.home_banking_.dto.request.DepositRequestDto;
+import com.home_banking_.dto.request.TransferRequestDto;
+import com.home_banking_.dto.request.WithDrawRequestDto;
 import com.home_banking_.dto.response.TransactionResponseDto;
+import com.home_banking_.enums.StatusAccount;
 import com.home_banking_.enums.StatusTransaction;
-import com.home_banking_.enums.TypeTransaction;
+import com.home_banking_.enums.TransactionOperationType;
 import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.mappers.TransactionMapper;
@@ -15,6 +18,7 @@ import com.home_banking_.repository.TransactionRepository;
 import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.TransactionService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,50 +45,123 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Transactional
     @Override
-    public TransactionResponseDto makeTransfer(TransactionRequestDto dto) {
+    public TransactionResponseDto makeTransfer(TransferRequestDto dto) {
 
-        Account origin = accountRepository.findById(dto.getAccountOriginId())
-                .orElseThrow(()-> new ResourceNotFoundException(
-                        "Origin account not found"
-                ));
+        // Email del JWT
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        Account destination = accountRepository.findById(dto.getAccountDestinyId())
-                .orElseThrow(()->  new ResourceNotFoundException(
-                        "Destination account not found"
-                ));
+        // Validación básica
+        if (dto.getOriginAccountId().equals(dto.getDestinationAccountId())) {
+            throw new BusinessException("Origin and destination accounts must be different");
+        }
 
         BigDecimal amount = dto.getAmount();
+        validateAmount(amount);
+
+        // Origen debe pertenecer al usuario autenticado
+        Account origin = accountRepository.findByIdAndUsersEmailForUpdate(dto.getOriginAccountId(), email)
+                .orElseThrow(() -> new ResourceNotFoundException("Origin account not found"));
+
+        Account destination = accountRepository.findByIdForUpdate(dto.getDestinationAccountId())
+                .orElseThrow(() -> new ResourceNotFoundException("Destination account not found"));
+
+        validateAccountActive(origin, "Origin");
+        validateAccountActive(destination, "Destination");
+
+        // Reglas de negocio
 
         if (origin.getBalance().compareTo(amount) < 0) {
-            log.warn("Insufficient balance in source account. ID: {} | Current balance: {} | Requested amount: {}",
+            log.warn("Insufficient balance. originId={} balance={} amount={}",
                     origin.getId(), origin.getBalance(), amount);
             throw new BusinessException("Insufficient balance for transfer");
         }
 
+        //Aplicar movimientos
         origin.setBalance(origin.getBalance().subtract(amount));
         destination.setBalance(destination.getBalance().add(amount));
 
-        accountRepository.save(origin);
-        accountRepository.save(destination);
+        //Registrar transacción
+        Transaction tx = new Transaction();
+        tx.setAmount(amount);
+        tx.setAccountOrigin(origin);
+        tx.setAccountDestiny(destination);
+        tx.setCreationDate(LocalDateTime.now());
+        tx.setStatusTransaction(StatusTransaction.COMPLETED);
+        tx.setTypeTransaction(TransactionOperationType.TRANSFER);
 
-        Transaction transaction = new Transaction();
-        transaction.setAmount(amount);
-        transaction.setAccountOrigin(origin);
-        transaction.setAccountDestiny(destination);
-        transaction.setCreationDate(LocalDateTime.now());
-        transaction.setStatusTransaction(StatusTransaction.COMPLETED);
-        transaction.setTypeTransaction(TypeTransaction.COBRO);
+        transactionRepository.save(tx);
 
-        transactionRepository.save(transaction);
-        log.info("Transfer completed. Source ID: {} -> destiny ID: {} | Amount: {} | ID transaction: {}",
-                origin.getId(), destination.getId(), amount, transaction.getId());
+        log.info("Transfer OK: origin={} dest={} amount={} txId={}",
+                origin.getId(), destination.getId(), amount, tx.getId());
 
-
-
-        return transactionMapper.toDto(transaction);
-
+        return transactionMapper.toDto(tx);
     }
 
+    @Transactional
+    @Override
+    public TransactionResponseDto makeDeposit(DepositRequestDto dto) {
+
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        BigDecimal amount = dto.getAmount();
+        validateAmount(amount);
+
+        Account account = accountRepository.findByIdAndUsersEmailForUpdate(dto.getAccountId(), email)
+                .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
+
+        validateAccountActive(account, "Account");
+
+        account.setBalance(account.getBalance().add(amount));
+
+        Transaction tx = new Transaction();
+        tx.setAmount(amount);
+        tx.setAccountDestiny(account); // depósito entra (destino)
+        tx.setCreationDate(LocalDateTime.now());
+        tx.setStatusTransaction(StatusTransaction.COMPLETED);
+        tx.setTypeTransaction(TransactionOperationType.DEPOSIT);
+
+        transactionRepository.save(tx);
+
+        log.info("Deposit OK: account={} amount={} txId={}", account.getId(), amount, tx.getId());
+
+        return transactionMapper.toDto(tx);
+    }
+
+    @Transactional
+    @Override
+    public TransactionResponseDto makeWithdraw(WithDrawRequestDto dto) {
+
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        BigDecimal amount = dto.getAmount();
+        validateAmount(amount);
+
+        Account account = accountRepository.findByIdAndUsersEmail(dto.getAccountId(), email)
+                .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
+
+        validateAccountActive(account, "Account");
+
+        if (account.getBalance().compareTo(amount) < 0) {
+            log.warn("Insufficient balance. accountId={} balance={} amount={}",
+                    account.getId(), account.getBalance(), amount);
+            throw new BusinessException("Insufficient balance for withdraw");
+        }
+
+        account.setBalance(account.getBalance().subtract(amount));
+
+        Transaction tx = new Transaction();
+        tx.setAmount(amount);
+        tx.setAccountOrigin(account); // retiro sale (origen)
+        tx.setCreationDate(LocalDateTime.now());
+        tx.setStatusTransaction(StatusTransaction.COMPLETED);
+        tx.setTypeTransaction(TransactionOperationType.WITHDRAW);
+
+        transactionRepository.save(tx);
+
+        log.info("Withdraw OK: account={} amount={} txId={}", account.getId(), amount, tx.getId());
+
+        return transactionMapper.toDto(tx);
+    }
 
     @Transactional(readOnly = true)
     @Override
@@ -105,9 +182,29 @@ public class TransactionServiceImpl implements TransactionService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<TransactionResponseDto> getMyTransactionsByAccount(Long accountId) {
+
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+       return transactionRepository.findMyTransactionsByAccount(email, accountId).stream()
+               .map(transactionMapper::toDto)
+               .toList();
+    }
+
+    @Override
+    public List<TransactionResponseDto> getMyTransactions() {
+
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        List<Transaction> txs = transactionRepository.findMyTransactions(email);
+        return txs.stream()
+                .map(transactionMapper::toDto)
+                .toList();
+    }
+
 
     @Transactional(readOnly = true)
-    @Override
     public List<TransactionResponseDto> getTransactionsByUser(Long userId) {
         log.info("Querying transactions for user ID: {}", userId);
 
@@ -124,5 +221,24 @@ public class TransactionServiceImpl implements TransactionService {
                 .map(transactionMapper::toDto)
                 .collect(Collectors.toList());
 
+    }
+
+    // -------------------
+    // Helpers
+    // ---------------------------
+
+    private void validateAmount(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Amount must be positive");
+        }
+        if (amount.scale() > 2) {
+            throw new BusinessException("Amount must have at most 2 decimal places");
+        }
+    }
+
+    private void validateAccountActive(Account acc, String label) {
+        if (acc.getStatusAccount() != StatusAccount.ACTIVE) {
+            throw new BusinessException(label + "account is not active");
+        }
     }
 }

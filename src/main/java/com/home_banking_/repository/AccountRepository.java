@@ -1,7 +1,11 @@
 package com.home_banking_.repository;
 
 import com.home_banking_.model.Account;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -14,4 +18,16 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     boolean existsByUsersIdAndAliasIgnoreCase(Long userId, String alias);
     boolean existsByAccountNumber(String accountNumber);
     boolean existsByCBU(String cbu);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select a from Account a where a.id = :id")
+    Optional<Account> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select a from Account a where a.id= :id and users.email =:email")
+    Optional<Account> findByIdAndUsersEmail(@Param("id") Long id, @Param("email") String email);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select a from Account a where a.id = :id and a.users.email =:email")
+    Optional<Account> findByIdAndUsersEmailForUpdate(@Param("id") Long id, @Param("email") String email);
 }

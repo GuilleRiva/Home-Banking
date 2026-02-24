@@ -1,9 +1,9 @@
 package com.home_banking_.mappers;
 
-import com.home_banking_.dto.request.TransactionRequestDto;
+import com.home_banking_.dto.request.TransferRequestDto;
 import com.home_banking_.dto.response.TransactionResponseDto;
 import com.home_banking_.enums.StatusTransaction;
-import com.home_banking_.enums.TypeTransaction;
+import com.home_banking_.enums.TransactionOperationType;
 import com.home_banking_.model.Transaction;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -22,7 +22,7 @@ public interface TransactionMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "amount", ignore = true)
     @Mapping(target = "creationDate", ignore = true)
-    Transaction toEntity(TransactionRequestDto dto);
+    Transaction toEntity(TransferRequestDto dto);
 
 
 
@@ -33,7 +33,7 @@ public interface TransactionMapper {
 
 
     @Named("typeTransactionToString")
-    static String typeTransactionToString(TypeTransaction value){
+    static String typeTransactionToString(TransactionOperationType value){
         return value != null ? value.name() : null;
     }
 

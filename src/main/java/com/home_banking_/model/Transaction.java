@@ -2,7 +2,7 @@ package com.home_banking_.model;
 
 import com.home_banking_.enums.MovementAccountType;
 import com.home_banking_.enums.StatusTransaction;
-import com.home_banking_.enums.TypeTransaction;
+import com.home_banking_.enums.TransactionOperationType;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -25,7 +25,7 @@ public class Transaction {
     private StatusTransaction statusTransaction;
 
     @Enumerated(EnumType.STRING)
-    private TypeTransaction typeTransaction;
+    private TransactionOperationType typeTransaction;
 
     @ManyToOne
     @JoinColumn(name = "account_origin_id")
