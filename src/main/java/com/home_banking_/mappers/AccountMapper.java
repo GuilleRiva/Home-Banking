@@ -23,7 +23,6 @@ public interface AccountMapper {
     @Mapping(target = "balance", ignore = true)
     @Mapping(target = "creationDate", ignore = true)
     @Mapping(source = "typeAccount", target = "typeAccount", qualifiedByName = "stringToTypeAccount")
-    @Mapping(source = "statusAccount", target = "statusAccount", qualifiedByName = "stringToStatusAccount")
     Account toEntity(AccountCreateRequestDto dto);
 
     //convert Enum -> String

@@ -1,6 +1,7 @@
 package com.home_banking_.controllers;
 
-import com.home_banking_.dto.request.LoanRequestDto;
+import com.home_banking_.dto.request.LoanGrantRequestDto;
+import com.home_banking_.dto.request.LoanSimulationRequestDto;
 import com.home_banking_.dto.response.LoanResponseDto;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.service.LoanService;
@@ -36,15 +37,13 @@ public class LoanController {
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Loan simulation completed successfully",
-            content = @Content(mediaType = "application/json",
-            array = @ArraySchema(schema = @Schema(implementation = LoanResponseDto.class)))),
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = LoanResponseDto.class))),
             @ApiResponse(responseCode = "404", description = "Invalid simulation request")
     })
     @PostMapping("/simulate")
     @PreAuthorize("hasRole('CLIENT')")
-    public ResponseEntity<LoanResponseDto> simulateLoan(@RequestBody @Valid LoanRequestDto dto){
-        log.info("POST /api/loans/simulate - Simulating a loan for an ID account: {} | Amount: {} | Quotas: {}",
-                dto.getAccountId(), dto.getAmount(), dto.getQuotas());
+    public ResponseEntity<LoanResponseDto> simulateLoan(@RequestBody @Valid LoanSimulationRequestDto dto){
 
         LoanResponseDto simulated = loanService.simulateLoans(dto);
 
@@ -61,14 +60,13 @@ public class LoanController {
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Loan granted successfully.",
-            content = @Content(mediaType = "application/json",
-            schema = @Schema(implementation = LoanResponseDto.class))),
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = LoanResponseDto.class))),
             @ApiResponse(responseCode = "400", description = "Invalid loan request")
     })
     @PostMapping("/grant")
-    public ResponseEntity<LoanResponseDto> grantLoan(@RequestBody @Valid LoanRequestDto dto){
-        log.info("POST /api/loans/grant - Granting loan to ID account: {} | Amount: {} | Quotas: {}",
-                dto.getAccountId(), dto.getAmount(), dto.getQuotas());
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<LoanResponseDto> grantLoan(@RequestBody @Valid LoanGrantRequestDto dto){
 
         LoanResponseDto granted = loanService.grantLoan(dto);
 
@@ -95,15 +93,9 @@ public class LoanController {
 
         log.info("GET /api/loans/account/{} - Consulting loan associated with the account", accountId);
 
-        return loanService.getLoanByAccount(accountId)
-                .map(loan -> {
-                    log.info("Loan found for ID account: {}",accountId);
-                    return ResponseEntity.ok(loan);
-                })
-                .orElseThrow(()-> {
-                    log.warn("Loan not found for account ID: {}", accountId);
-                    return new ResourceNotFoundException("Loan not found for account ID:" + accountId);
-                });
+        LoanResponseDto loan = loanService.getLoanByAccount(accountId)
+                .orElseThrow(()-> new ResourceNotFoundException("Loan not found for account ID:" + accountId));
+        return ResponseEntity.ok(loan);
     }
 
 }

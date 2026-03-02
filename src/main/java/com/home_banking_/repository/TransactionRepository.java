@@ -9,6 +9,13 @@ import java.util.List;
 
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
+
+    @Query("""
+            select t FROM Transaction t
+            where t.accountOrigin.user.id = :userId
+            or t.accountDestiny.user.id = :userId
+            """)
+List<Transaction> findAllByUserId(@Param("userId") Long userId);
     
 @Query("""
         select t from Transaction t

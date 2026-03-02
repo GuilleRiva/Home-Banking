@@ -9,5 +9,7 @@ import java.util.Optional;
 @Repository
 public interface LoanRepository extends JpaRepository<Loan, Long> {
 
-    Optional<Loan> findByAccountId(Long amountId);
+    Optional<Loan> findByAccountId(Long accountId);
+
+    Optional<Loan> findByAccountIdAndAccountUsersEmail(Long accountId, String email);
 }

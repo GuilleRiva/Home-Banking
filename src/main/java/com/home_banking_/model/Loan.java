@@ -1,6 +1,6 @@
 package com.home_banking_.model;
 
-import com.home_banking_.enums.StatusLoan;
+import com.home_banking_.enums.LoanStatus;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -14,15 +14,15 @@ public class Loan {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private BigDecimal amount;
-    private Integer quotas;
+    private Integer installments;
     private BigDecimal interestRate;
     private BigDecimal totalToPay;
-    private BigDecimal amountQuota;
+    private BigDecimal InstallmentsAmount;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
 
     @Enumerated(EnumType.STRING)
-    private StatusLoan statusLoan;
+    private LoanStatus statusLoan;
 
     @ManyToOne
     @JoinColumn(name = "account_id")

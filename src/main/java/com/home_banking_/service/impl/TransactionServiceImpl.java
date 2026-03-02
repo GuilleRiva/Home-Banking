@@ -173,7 +173,7 @@ public class TransactionServiceImpl implements TransactionService {
                         "Account not found"
                 ));
 
-        List<Transaction> transactions = transactionRepository.findByAccountOrigin_Users_IdOrAccountDestiny_Users_Id(accountId, accountId);
+        List<Transaction> transactions = transactionRepository.findByAccountId(accountId);
 
         log.info("They found each other {} Transactions associated with the ID account: {}", transactions.size(), accountId);
 
@@ -213,7 +213,7 @@ public class TransactionServiceImpl implements TransactionService {
                         "User not found"
                 ));
 
-        List<Transaction> transactions = transactionRepository.findByAccountOrigin_Users_IdOrAccountDestiny_Users_Id(userId, userId);
+        List<Transaction> transactions = transactionRepository.findAllByUserId(userId);
 
         log.info("They found each other {} Transactions associated with user ID: {}", transactions.size(), userId);
 

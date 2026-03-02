@@ -24,10 +24,10 @@ public class TransactionResponseDto {
 
 
     @Schema(description = "Operation type", example = "TRANSFER")
-    private TransactionOperationType transactionOperationType;
+    private TransactionOperationType typeTransaction;
 
     @Schema(description = "Transaction status", example = "COMPLETED")
-    private StatusTransaction status;
+    private StatusTransaction statusTransaction;
 
     @Schema(description = "Destination account id", example = "2003")
     private Long destinationAccountId;
