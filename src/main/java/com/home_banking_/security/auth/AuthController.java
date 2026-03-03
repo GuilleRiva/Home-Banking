@@ -1,6 +1,7 @@
 package com.home_banking_.security.auth;
 
 import com.home_banking_.dto.auth.ChangePasswordRequest;
+import com.home_banking_.security.token.RefreshTokenRequestDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,10 +41,8 @@ public class AuthController {
 
     @Operation(summary = "Refresh access token", description = "Returns a new access token from a valid refresh token")
     @PostMapping("/refresh")
-    public ResponseEntity<AuthResponse> refresh (@RequestHeader("Authorization") String bearerToken){
-        String refreshToken = bearerToken.replace("Bearer", "");
-
-        return ResponseEntity.ok(authService.refreshToken(refreshToken));
+    public ResponseEntity<AuthResponse> refresh (@Valid @RequestBody RefreshTokenRequestDto dto) {
+        return ResponseEntity.ok(authService.refreshToken(dto.getRefreshToken()));
     }
 
 

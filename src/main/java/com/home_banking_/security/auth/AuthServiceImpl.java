@@ -2,19 +2,21 @@ package com.home_banking_.security.auth;
 
 import com.home_banking_.dto.request.IPAddressRequestDto;
 import com.home_banking_.dto.auth.ChangePasswordRequest;
+import com.home_banking_.enums.Rol;
+import com.home_banking_.enums.JwtTokenType;
 import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.model.Users;
 import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.impl.JwtService;
 import com.home_banking_.security.token.Token;
 import com.home_banking_.security.token.TokenRepository;
-import com.home_banking_.security.token.TokenType;
 import com.home_banking_.security.user.UserDetailsImpl;
 import com.home_banking_.service.AuditLogService;
 import com.home_banking_.service.GeoLocationService;
 import com.home_banking_.service.IPAddressService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -43,6 +45,10 @@ public class AuthServiceImpl implements AuthService{
     private final IPAddressService ipAddressService;
     private final GeoLocationService geoLocationService;
 
+
+    @Value("${application.security.jwt.expiration-ms:900000}")
+    private long accessExpirationMs;
+
     @Override
     public AuthResponse register(RegisterRequest request) {
         Users users = new Users();
@@ -50,28 +56,30 @@ public class AuthServiceImpl implements AuthService{
         users.setSurname(request.getSurname());
         users.setEmail(request.getEmail());
         users.setPassword(passwordEncoder.encode(request.getPassword()));
-        users.setRol(request.getRol());
+        users.setRol(Rol.CLIENT);
 
         usersRepository.save(users);
 
         String accessToken = jwtService.generateToken(UserDetailsImpl.build(users));
         String refreshToken = jwtService.generateRefreshToken(users);
 
-        savedUserToken(users, accessToken);
+        savedUserToken(users, accessToken, JwtTokenType.ACCESS);
+        savedUserToken(users, refreshToken, JwtTokenType.REFRESH);
 
-        return new AuthResponse(accessToken, refreshToken, "BEARER");
+        return new AuthResponse(accessToken, refreshToken, "Bearer", accessExpirationMs / 1000);
     }
 
 
-    private void savedUserToken(Users users, String token) {
-        Token t = Token.builder()
-                .user(users)
-                .token(token)
-                .tokenType(TokenType.BEARER)
-                .revoked(false)
+    @Transactional
+    public void savedUserToken(Users user, String jwt, JwtTokenType jwtTokenType) {
+        Token token = Token.builder()
+                .user(user)
+                .token(jwt)
+                .jwtTokenType(jwtTokenType)
                 .expired(false)
+                .revoked(false)
                 .build();
-        tokenRepository.save(t);
+        tokenRepository.save(token);
     }
 
 
@@ -133,8 +141,9 @@ public class AuthServiceImpl implements AuthService{
 
 
             // 7) Revocar tokens previos y guardar el nuevo
-            revokeAllUserTokens(user.getId());
-            savedUserToken(user, accessToken);
+            revokeAllUserTokensByType(user.getId(), JwtTokenType.ACCESS);
+            savedUserToken(user, accessToken, JwtTokenType.ACCESS);
+            savedUserToken(user, refreshToken, JwtTokenType.REFRESH);
 
             // 8) Auditoría login OK
             String location = geoLocationService.getLocationFromIP(ipAddress);
@@ -145,7 +154,7 @@ public class AuthServiceImpl implements AuthService{
                     "AUTH"
             );
 
-            return new AuthResponse(accessToken, refreshToken, "Bearer");
+            return new AuthResponse(accessToken, refreshToken, "Bearer", accessExpirationMs / 1000);
 
         } catch (BadCredentialsException e) {
             // 9) Manejo de credenciales inválidas
@@ -171,20 +180,34 @@ public class AuthServiceImpl implements AuthService{
     @Override
     public AuthResponse refreshToken(String refreshToken) {
 
-        String email = jwtService.extractUsername(refreshToken);
-
         if (!jwtService.isTokenValid(refreshToken)){
             throw  new BusinessException("Invalid refresh token");
         }
 
-        Users user = usersRepository.findByEmail(email)
+        boolean dbValid = tokenRepository.existsByTokenAndExpiredFalseAndRevokedFalse(refreshToken);
+        if (!dbValid) {
+            throw new BusinessException("Refresh token revoked or expired");
+        }
+
+        String email = jwtService.extractUsername(refreshToken);
+
+        Users users = usersRepository.findByEmail(email)
                 .orElseThrow(()-> new UsernameNotFoundException("User not found"));
 
-        String newAccessToken = jwtService.generateToken(UserDetailsImpl.build(user));
-        revokeAllUserTokens(user.getId());
-        savedUserToken(user, newAccessToken);
+        //Nuevo refresh token
+        String newRefreshToken = jwtService.generateRefreshToken(users);
 
-        return new AuthResponse(newAccessToken, refreshToken, "Bearer");
+        // Nuevo access token
+        String newAccessToken = jwtService.generateToken(UserDetailsImpl.build(users));
+
+        revokeToken(refreshToken);
+
+        savedUserToken(users, newAccessToken, JwtTokenType.ACCESS);
+        savedUserToken(users, newRefreshToken, JwtTokenType.REFRESH);
+
+        long expiresInSeconds = accessExpirationMs / 1000;
+
+        return new AuthResponse(newAccessToken, newRefreshToken, "Bearer", expiresInSeconds);
     }
 
 
@@ -245,13 +268,27 @@ public class AuthServiceImpl implements AuthService{
     }
 
 
-
-
     @Transactional
     public void revokeAllUserTokens (Long userId){
         var tokens = tokenRepository.findByUser_IdAndExpiredFalseAndRevokedFalse(userId);
         tokens.forEach(t -> { t.setExpired(true); t.setRevoked(true);});
         tokenRepository.saveAll(tokens);
 
+        }
+
+        @Transactional
+        public void revokeToken(String rawToken){
+            tokenRepository.findByToken(rawToken).ifPresent(t -> {
+                t.setRevoked(true);
+                t.setExpired(true);
+                tokenRepository.save(t);
+            });
+
+        }
+        @Transactional
+        public void revokeAllUserTokensByType(Long userId, JwtTokenType jwtTokenType) {
+         var tokens = tokenRepository.findByUser_IdAndTokenTypeAndExpiredFalseAndRevokedFalse(userId, jwtTokenType);
+         tokens.forEach(t -> { t.setExpired(true); t.setRevoked(true);});
+         tokenRepository.saveAll(tokens);
         }
 }

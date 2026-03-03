@@ -10,12 +10,13 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AuthResponse {
 
-    @Schema(description = "JWT access token", example = "eyJhbGciOiJIUzI1...")
     private String accessToken;
-
-    @Schema(description = "Jwt refresh token", example = "eyJhbGciOiJIUzI1...")
     private String refreshToken;
 
-    @Schema(description = "Token type", example = "Bearer")
+    @Schema( example = "Bearer")
     private String tokenType = "Bearer";
+
+    @Schema(description = "Access token expiration in seconds", example = "900")
+    private long expiresIn;
+
 }

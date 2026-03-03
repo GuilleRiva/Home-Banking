@@ -1,5 +1,6 @@
 package com.home_banking_.security.token;
 
+import com.home_banking_.enums.JwtTokenType;
 import com.home_banking_.model.Users;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -30,7 +31,7 @@ public class Token {
     private boolean expired;
 
     @Enumerated(EnumType.STRING)
-    private TokenType tokenType;
+    private JwtTokenType jwtTokenType;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn
