@@ -1,17 +1,20 @@
 package com.home_banking_.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.home_banking_.enums.Rol;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
-@Data
+@Getter
+@Setter
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@Schema(description = "User data returned for administrative or internal use.")
 public class UserResponseDto {
 
     @Schema(description = "Unique identifier", example = "15")
@@ -31,7 +34,7 @@ public class UserResponseDto {
     @Schema(description = "User register date", example = "2025-07-08T14:35:00")
     private LocalDateTime registrationDate;
 
-    @Schema(description = "User role in the system. Possible values: CLIENT, VENDEDOR", example = "CLIENT", implementation = Rol.class)
-    private Rol rol;
+    @Schema(description = "User role in the system.", example = "CLIENT", implementation = Rol.class)
+    private String rol;
 
 }

@@ -1,6 +1,7 @@
 package com.home_banking_.service.impl;
 
 import com.home_banking_.dto.request.UserRequestDto;
+import com.home_banking_.dto.response.UserProfileResponseDto;
 import com.home_banking_.dto.response.UserResponseDto;
 import com.home_banking_.enums.Rol;
 import com.home_banking_.exceptions.ResourceNotFoundException;
@@ -38,7 +39,7 @@ public class UserServiceImpl implements UserService {
                         "User not found with ID:" + id
                 ));
 
-        return usersMapper.toDTO(user);
+        return usersMapper.toUserResponseDto(user);
     }
 
 
@@ -50,43 +51,34 @@ public class UserServiceImpl implements UserService {
                         "User not found with email:" + email
                 ));
 
-        return usersMapper.toDTO(users);
+        return usersMapper.toUserResponseDto(users);
     }
 
 
 
     @Override
-    public UserResponseDto createUser(UserRequestDto dto) {
+    public UserProfileResponseDto createUser(UserRequestDto dto) {
 
         Users users = usersMapper.toEntity(dto);
         users.setRegistrationDate(LocalDateTime.now());
         Users savedUser = usersRepository.save(users);
 
         log.info("User created successfully. ID: {} | Email: {}", savedUser.getId(), savedUser.getEmail());
-        return usersMapper.toDTO(savedUser);
+        return usersMapper.toUserProfileResponseDto(savedUser);
     }
-
 
 
     @Override
     @Transactional(readOnly = true)
     public List<UserResponseDto> findAll() {
         return usersRepository.findAll().stream()
-                .map(u -> new UserResponseDto(
-                        u.getId(),
-                        u.getName(),
-                        u.getSurname(),
-                        u.getEmail(),
-                        u.getRegistrationDate(),
-                        u.getRol()
-                ))
+                .map(usersMapper::toUserResponseDto)
                 .toList();
     }
 
 
-
     @Override
-    public UserResponseDto save(Long id, @Valid UserResponseDto dto) {
+    public UserProfileResponseDto save(Long id, @Valid UserResponseDto dto) {
 
         Users existingUser = usersRepository.findById(id)
                 .orElseThrow(()-> new ResourceNotFoundException(
@@ -102,7 +94,7 @@ public class UserServiceImpl implements UserService {
         Users updateUser = usersRepository.save(existingUser);
 
         log.info("User successfully updated. ID: {}", id);
-        return usersMapper.toDTO(updateUser);
+        return usersMapper.toUserProfileResponseDto(updateUser);
     }
 
     @Override

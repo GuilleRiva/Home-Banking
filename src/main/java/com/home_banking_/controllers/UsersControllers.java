@@ -1,6 +1,7 @@
 package com.home_banking_.controllers;
 
 import com.home_banking_.dto.request.UserRequestDto;
+import com.home_banking_.dto.response.UserProfileResponseDto;
 import com.home_banking_.dto.response.UserResponseDto;
 import com.home_banking_.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -103,22 +104,22 @@ UsersControllers {
             @ApiResponse(responseCode = "400", description = "Invalid user request")
     })
     @PostMapping
-    public ResponseEntity<UserResponseDto> createUser(@RequestBody @Valid UserRequestDto newUser){
+    public ResponseEntity<UserProfileResponseDto> createUser(@RequestBody @Valid UserRequestDto newUser){
         log.info("POST /api/users - Registering new user: {}", newUser.getEmail());
 
-        UserResponseDto created = userService.createUser(newUser);
+        UserProfileResponseDto created = userService.createUser(newUser);
         log.info("User created successfully with ID: {}", created.getId());
         return new ResponseEntity<>(created, HttpStatus.CREATED);
     }
 
 
     @PostMapping("/{userId}")
-    public ResponseEntity<UserResponseDto> updateUser(@PathVariable Long userId,
-                                            @Valid @RequestBody UserResponseDto updatedUser){
+    public ResponseEntity<UserProfileResponseDto> updateUser(@PathVariable Long userId,
+                                                             @Valid @RequestBody UserResponseDto updatedUser){
 
         log.info("POST /api/users/{} - Updating user", userId);
 
-        UserResponseDto userResponse = userService.save(userId,updatedUser);
+        UserProfileResponseDto userResponse = userService.save(userId,updatedUser);
         log.info("User successfully updated: {}", userResponse.getEmail());
         return ResponseEntity.ok(userResponse);
     }

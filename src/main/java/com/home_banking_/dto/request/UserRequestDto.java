@@ -1,36 +1,38 @@
 package com.home_banking_.dto.request;
 
-import com.home_banking_.enums.Rol;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.Data;
+import lombok.*;
 
 
-@Data
 @Schema(description = "DTO used to register a new user in the system.")
+@AllArgsConstructor
+@NoArgsConstructor
+@Setter
+@Getter
 public class UserRequestDto {
 
-    @Schema(description = "User's first name", example = "Juan")
-    @NotBlank(message = "name is required")
+    @NotBlank
+    @Size(min = 2, max = 50)
     private String name;
 
-    @Schema(description = "User's last name", example = "Pérez")
-    @NotBlank(message = "surname is required")
+    @NotBlank
+    @Size(min = 2,max = 50)
     private String surname;
 
-    @Schema(description = "User's email address", example = "juan.perez@example.com")
-    @Email(message = "Email invalid format")
-    @NotBlank(message = "Email is required")
+    @Email
+    @NotBlank
+    @Size(max = 254)
     private String email;
 
-    @Schema(description = "Password for user authentication. Must be at least 8 characters.", example = "StrongPass123")
-    @NotBlank(message = "Password is required")
-    @Size(min = 8, message = "Password must be at least 8 characters")
+    @Size(min = 10, max = 72, message = "Password must be between 10 and 72 characters")
+    @Pattern(
+            regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\\\d)(?=.*[^\\\\w\\\\s]).+$",
+            message = "Password must include uppercase, lowercase, number, and symbol"
+    )
+    @ToString.Exclude
     private String password;
-
-    @Schema(description = "User role in the system. Possible values: CLIENT, VENDEDOR", example = "CLIENT", implementation = Rol.class)
-    private Rol rol;
-
 }
