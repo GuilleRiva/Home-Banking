@@ -1,4 +1,5 @@
 package com.home_banking_.model;
+import com.home_banking_.enums.Currency;
 import com.home_banking_.enums.StatusAccount;
 import com.home_banking_.enums.TypeAccount;
 import jakarta.persistence.*;
@@ -29,6 +30,9 @@ public class Account {
 
     @Enumerated(EnumType.STRING)
     private StatusAccount statusAccount;
+
+    @Enumerated(EnumType.STRING)
+    private Currency currency;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
