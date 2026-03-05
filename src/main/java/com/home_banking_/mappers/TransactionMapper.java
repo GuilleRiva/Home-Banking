@@ -1,6 +1,6 @@
 package com.home_banking_.mappers;
 
-import com.home_banking_.dto.request.TransferRequestDto;
+import com.home_banking_.dto.request.TransactionRequestDto;
 import com.home_banking_.dto.response.TransactionResponseDto;
 import com.home_banking_.enums.StatusTransaction;
 import com.home_banking_.enums.TransactionOperationType;
@@ -13,23 +13,11 @@ import org.mapstruct.Named;
 public interface TransactionMapper {
 
 
-  /*  @Mapping(target = "movementAccountType", source = "movementAccountType", qualifiedByName = "movementAccountTypeToString")*/
     @Mapping(target = "typeTransaction", source = "typeTransaction", qualifiedByName = "typeTransactionToString")
     @Mapping(target = "statusTransaction", source = "statusTransaction", qualifiedByName = "statusTransactionToString")
-    TransactionResponseDto toDto(Transaction dto);
-
-
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "amount", ignore = true)
-    @Mapping(target = "creationDate", ignore = true)
-    Transaction toEntity(TransferRequestDto dto);
-
-
-
-   /* @Name("movementAccountTypeToString")
-    static String movementAccountTypeToString(MovementAccountType e){
-        return e != null ? e.name() : null;
-    }*/
+    @Mapping(target = "originAccountId", source = "accountOrigin.id")
+    @Mapping(target = "destinationAccountId",source = "accountDestiny.id")
+    TransactionResponseDto toDto(Transaction tx);
 
 
     @Named("typeTransactionToString")

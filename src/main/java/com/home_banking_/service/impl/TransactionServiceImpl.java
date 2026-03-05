@@ -1,7 +1,7 @@
 package com.home_banking_.service.impl;
 
 import com.home_banking_.dto.request.DepositRequestDto;
-import com.home_banking_.dto.request.TransferRequestDto;
+import com.home_banking_.dto.request.TransactionRequestDto;
 import com.home_banking_.dto.request.WithDrawRequestDto;
 import com.home_banking_.dto.response.TransactionResponseDto;
 import com.home_banking_.enums.StatusAccount;
@@ -45,15 +45,16 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Transactional
     @Override
-    public TransactionResponseDto makeTransfer(TransferRequestDto dto) {
+    public TransactionResponseDto makeTransfer(TransactionRequestDto dto) {
 
         // Email del JWT
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        // Validación básica
+        // Validaciones básica
         if (dto.getOriginAccountId().equals(dto.getDestinationAccountId())) {
             throw new BusinessException("Origin and destination accounts must be different");
         }
+
 
         BigDecimal amount = dto.getAmount();
         validateAmount(amount);

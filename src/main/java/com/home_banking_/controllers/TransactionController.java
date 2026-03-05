@@ -1,7 +1,7 @@
 package com.home_banking_.controllers;
 
 import com.home_banking_.dto.request.DepositRequestDto;
-import com.home_banking_.dto.request.TransferRequestDto;
+import com.home_banking_.dto.request.TransactionRequestDto;
 import com.home_banking_.dto.request.WithDrawRequestDto;
 import com.home_banking_.dto.response.TransactionResponseDto;
 import com.home_banking_.service.TransactionService;
@@ -95,10 +95,11 @@ public class TransactionController {
     })
     @PostMapping("/transfer")
     @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN', 'EMPLOYED')")
-    public ResponseEntity<TransactionResponseDto> makeTransfer(@Valid @RequestBody TransferRequestDto dto){
+    public ResponseEntity<TransactionResponseDto> makeTransfer(@Valid @RequestBody TransactionRequestDto dto){
 
         return ResponseEntity.status(HttpStatus.CREATED).body(transactionService.makeTransfer(dto));
     }
+
 
     @Operation(summary = "Deposit money into an account",
     description = "Creates a deposit transaction.")
@@ -145,6 +146,7 @@ public class TransactionController {
     public ResponseEntity<List<TransactionResponseDto>> getTransactionsByAccount(@PathVariable Long accountId) {
         return ResponseEntity.ok(transactionService.getTransactionsByAccount(accountId));
     }
+
 
     @Operation(summary = "Get transaction by user ID (admin)",
     description = "Returns transactions for a given user. Admin/backoffice usage.")

@@ -1,5 +1,6 @@
 package com.home_banking_.model;
 
+import com.home_banking_.enums.Currency;
 import com.home_banking_.enums.MovementAccountType;
 import com.home_banking_.enums.StatusTransaction;
 import com.home_banking_.enums.TransactionOperationType;
@@ -18,6 +19,9 @@ public class Transaction {
     private BigDecimal amount;
     private LocalDateTime creationDate;
 
+    @Column(unique = true)
+    private String reference;
+
     @Enumerated(EnumType.STRING)
     private MovementAccountType movementAccountType;
 
@@ -26,6 +30,10 @@ public class Transaction {
 
     @Enumerated(EnumType.STRING)
     private TransactionOperationType typeTransaction;
+
+    @Enumerated(EnumType.STRING)
+    private Currency currency;
+
 
     @ManyToOne
     @JoinColumn(name = "account_origin_id")
