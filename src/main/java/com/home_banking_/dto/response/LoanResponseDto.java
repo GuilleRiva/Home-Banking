@@ -1,5 +1,6 @@
 package com.home_banking_.dto.response;
 
+import com.home_banking_.enums.Currency;
 import com.home_banking_.enums.LoanStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -43,4 +44,7 @@ public class LoanResponseDto {
 
     @Schema(description = "current status of the loan", example = "ACTIVE")
     private LoanStatus statusLoan;
+
+    @Schema(description = "Currency of the loan", example = "USD")
+    private Currency currency;
 }

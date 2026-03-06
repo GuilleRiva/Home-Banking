@@ -4,6 +4,8 @@ import com.home_banking_.dto.request.LoanGrantRequestDto;
 import com.home_banking_.dto.request.LoanSimulationRequestDto;
 import com.home_banking_.dto.response.LoanResponseDto;
 import com.home_banking_.enums.LoanStatus;
+import com.home_banking_.enums.StatusAccount;
+import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.mappers.LoanMapper;
 import com.home_banking_.model.Account;
@@ -28,6 +30,8 @@ public class LoanServiceImpl implements LoanService {
     private final AccountRepository accountRepository;
     private final LoanRepository loanRepository;
     private final LoanMapper loanMapper;
+
+    private static final BigDecimal DEFAULT_INTEREST_RATE = new BigDecimal("0.20");
 
     public LoanServiceImpl(AccountRepository accountRepository, LoanRepository loanRepository, LoanMapper loanMapper) {
         this.accountRepository = accountRepository;
@@ -67,24 +71,33 @@ public class LoanServiceImpl implements LoanService {
                 .orElseThrow(()-> new ResourceNotFoundException(
                         "Account not found"
                 ));
+        validateAccountActive(account);
+        validateLoanRequest(dto.getAmount(), dto.getInstallments());
 
         Loan loan = buildLoanFromDto(dto.getAmount(), dto.getInstallments(), account);
         loan.setStatusLoan(LoanStatus.ACTIVE);
         loan.setStartDate(LocalDateTime.now());
         loan.setEndDate(LocalDateTime.now().plusMonths(dto.getInstallments()));
+        loan.setCurrency(account.getCurrency());
 
-        // desembolso minimo
         account.setBalance(account.getBalance().add(dto.getAmount()));
 
         loanRepository.save(loan);
-        log.info("Loan successfully granted. AccountId: {} | Total to pay: {} | End date: {}",
-                dto.getAccountId(), loan.getTotalToPay(), loan.getEndDate());
+        accountRepository.save(account);
+
+        log.info("Loan granted successfully. accountId={} amount={} currency={} installments={} totalToPay={} endDate={}",
+                account.getId(),
+                loan.getAmount(),
+                loan.getCurrency(),
+                loan.getInstallments(),
+                loan.getTotalToPay(),
+                loan.getEndDate());
 
         return loanMapper.toDto(loan);
     }
 
     private Loan buildLoanFromDto(BigDecimal amount, Integer installments, Account account) {
-        BigDecimal interestRate = new BigDecimal("0.20");
+        BigDecimal interestRate = DEFAULT_INTEREST_RATE;
         BigDecimal totalToPay = amount.add(amount.multiply(interestRate));
         BigDecimal installmentAmount = totalToPay.divide(BigDecimal.valueOf(installments), 2, RoundingMode.HALF_UP);
 
@@ -114,4 +127,25 @@ public class LoanServiceImpl implements LoanService {
         return loan.map(loanMapper::toDto);
     }
 
+
+    // Helpers //
+    private void validateLoanRequest(BigDecimal amount, Integer installments) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0){
+            throw new BusinessException("Loan amount mut be greater than zero");
+        }
+        if (installments == null || installments <=0) {
+            throw new BusinessException("Installments must be greater than zero");
+        }
+    }
+
+    private void validateAccountActive(Account account){
+        if (account == null) {
+            throw new ResourceNotFoundException("Account not found");
+        }
+        if (account.getStatusAccount() != StatusAccount.ACTIVE){
+            throw new BusinessException(
+                    "Account" + account.getId() + "is not active cannot perform operations"
+            );
+        }
+    }
 }

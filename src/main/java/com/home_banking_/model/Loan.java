@@ -1,5 +1,6 @@
 package com.home_banking_.model;
 
+import com.home_banking_.enums.Currency;
 import com.home_banking_.enums.LoanStatus;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -23,6 +24,9 @@ public class Loan {
 
     @Enumerated(EnumType.STRING)
     private LoanStatus statusLoan;
+
+    @Enumerated(EnumType.STRING)
+    private Currency currency;
 
     @ManyToOne
     @JoinColumn(name = "account_id")
