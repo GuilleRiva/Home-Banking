@@ -66,7 +66,6 @@ public class AuditLogServiceImpl implements AuditLogService {
     }
 
 
-
     @Override
     public List<AuditLogResponseDto> getLogsByUser(Long user_id) {
 

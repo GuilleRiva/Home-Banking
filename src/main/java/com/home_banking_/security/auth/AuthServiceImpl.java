@@ -1,5 +1,8 @@
 package com.home_banking_.security.auth;
 
+import com.home_banking_.dto.auth.AuthRequest;
+import com.home_banking_.dto.auth.AuthResponse;
+import com.home_banking_.dto.auth.RegisterRequestDto;
 import com.home_banking_.dto.request.IPAddressRequestDto;
 import com.home_banking_.dto.auth.ChangePasswordRequest;
 import com.home_banking_.enums.Rol;
@@ -50,7 +53,7 @@ public class AuthServiceImpl implements AuthService{
     private long accessExpirationMs;
 
     @Override
-    public AuthResponse register(RegisterRequest request) {
+    public AuthResponse register(RegisterRequestDto request) {
         Users users = new Users();
         users.setName(request.getName());
         users.setSurname(request.getSurname());

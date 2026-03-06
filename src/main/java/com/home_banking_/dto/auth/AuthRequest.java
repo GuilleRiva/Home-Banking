@@ -1,4 +1,4 @@
-package com.home_banking_.security.auth;
+package com.home_banking_.dto.auth;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;

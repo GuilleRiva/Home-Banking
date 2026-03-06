@@ -11,15 +11,19 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Schema(description = "DTO representing an audit log entry")
 public class AuditLogResponseDto {
 
     @Schema(description = "ID of the log entry", example = "1001")
     private Long id;
 
+    @Schema(description = "Identifier of the user associated with the event", example = "15")
+    private Long userId;
+
     @Schema(description = "Action performed", example = "TRANSFER")
     private String action;
 
-    @Schema(description = "Detailed description of the action", example = "User transferred $2000.00 to account 1234")
+    @Schema(description = "Detailed description of the action", example = "User transferred $2000.00 ARS to account 1234")
     private String description;
 
     @Schema(description = "Date and time when action occurred", example = "2025-07-08T15:45:00")

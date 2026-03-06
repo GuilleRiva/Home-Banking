@@ -1,6 +1,9 @@
 package com.home_banking_.security.auth;
 
+import com.home_banking_.dto.auth.AuthRequest;
+import com.home_banking_.dto.auth.AuthResponse;
 import com.home_banking_.dto.auth.ChangePasswordRequest;
+import com.home_banking_.dto.auth.RegisterRequestDto;
 import com.home_banking_.security.token.RefreshTokenRequestDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,14 +26,14 @@ public class AuthController {
 
     @Operation(summary = "Register a new user", description = "Create a new user in the database")
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register (@RequestBody @Valid RegisterRequest request){
+    public ResponseEntity<AuthResponse> register (@RequestBody @Valid RegisterRequestDto request){
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
     }
 
 
     @Operation(summary = "Login", description = "Authenticates the user and returns the access token and refresh token")
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login (@RequestBody  AuthRequest request,
+    public ResponseEntity<AuthResponse> login (@RequestBody AuthRequest request,
                                                HttpServletRequest httpRequest){
 
         String ipAddress = httpRequest.getRemoteAddr();

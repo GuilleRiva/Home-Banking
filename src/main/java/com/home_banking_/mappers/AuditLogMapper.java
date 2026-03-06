@@ -1,6 +1,5 @@
 package com.home_banking_.mappers;
 
-import com.home_banking_.dto.request.AuditLogRequestDto;
 import com.home_banking_.dto.response.AuditLogResponseDto;
 import com.home_banking_.enums.AuditType;
 import com.home_banking_.model.AuditLog;
@@ -12,11 +11,8 @@ import org.mapstruct.Named;
 public interface AuditLogMapper {
 
     @Mapping(target = "type", source = "type", qualifiedByName = "typeToString")
+    @Mapping(target = "userId", source = "users.id")
     AuditLogResponseDto toDTO(AuditLog auditLog);
-
-
-    @Mapping(source = "type", target = "type", qualifiedByName = "stringToAuditType")
-    AuditLog toEntity(AuditLogRequestDto dto);
 
 
     @Named("typeToString")
@@ -24,8 +20,4 @@ public interface AuditLogMapper {
         return e != null ? e.name() : null;
     }
 
-    @Named("stringToAuditType")
-    static AuditType stringToAuditType(String value){
-        return  value != null ? AuditType.valueOf(value) : null;
-    }
 }
