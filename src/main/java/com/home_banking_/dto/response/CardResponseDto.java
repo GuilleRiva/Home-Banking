@@ -3,31 +3,29 @@ package com.home_banking_.dto.response;
 import com.home_banking_.enums.StatusCard;
 import com.home_banking_.enums.TypeCard;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-import java.time.LocalDateTime;
-
-@Data
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@Schema(description = "DTO representing a card with sensitive data masked")
 public class CardResponseDto {
 
     @Schema(description = "Unique card ID", example = "200")
     private Long id;
 
-    @Schema(description = "Card number.", example = "2564367891230")
-    private String number;
+    @Schema(description = "Masked card number", example = "**********************1234")
+    private String numberMasked;
 
-    @Schema(description = "Expiration date of the card", example = "2025-07-08T10:00:00")
-    private LocalDateTime expiration;
+    @Schema(description = "Card expiration date in MM/YY format", example = "07/28")
+    private String expiration;
 
-    @Schema(description = "Type of the card ", example = "DEBITO",
+    @Schema(description = "Type of the card ", example = "DEBIT",
     implementation = TypeCard.class)
     private TypeCard typeCard;
 
-    @Schema(description = "Status of card", example = "Card expired",
+    @Schema(description = "Current status of the card", example = "ACTIVE",
     implementation = StatusCard.class)
     private StatusCard statusCard;
 
