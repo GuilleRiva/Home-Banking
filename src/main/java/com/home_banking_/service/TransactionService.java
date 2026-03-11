@@ -15,11 +15,9 @@ public interface TransactionService {
 
     TransactionResponseDto makeWithdraw(WithDrawRequestDto dto);
 
-    List<TransactionResponseDto> getTransactionsByAccount(Long accountId);
-    
-    List<TransactionResponseDto> getMyTransactionsByAccount(Long accountId);
-
     List<TransactionResponseDto> getMyTransactions();
 
     List<TransactionResponseDto> getTransactionsByUser(Long userId);
+
+    List<TransactionResponseDto> getTransactionsByAccount(Long accountId);
 }

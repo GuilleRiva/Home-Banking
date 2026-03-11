@@ -67,10 +67,10 @@ public class AuditLogServiceImpl implements AuditLogService {
 
 
     @Override
-    public List<AuditLogResponseDto> getLogsByUser(Long user_id) {
+    public List<AuditLogResponseDto> getLogsByUser(Long userId) {
 
-        List<AuditLog> logs = auditLogRepository.findByUsers_IdOrderByDateTimeDesc(user_id);
-        log.debug("Total logs found for user ID {}: {}", user_id, logs.size());
+        List<AuditLog> logs = auditLogRepository.findByUsers_IdOrderByDateTimeDesc(userId);
+        log.debug("Total logs found for user ID {}: {}", userId, logs.size());
 
         return logs.stream()
                 .map(auditLogMapper::toDTO)

@@ -55,27 +55,6 @@ public class TransactionController {
         return ResponseEntity.ok(transactionService.getMyTransactions());
     }
 
-    @Operation (
-            summary = "Get my transactions by account",
-            description = "Returns transactions for one of the authenticated user's accounts."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Transactions retrieved successfully",
-                    content = @Content(mediaType = "application/json",
-                            array = @ArraySchema(schema = @Schema(implementation = TransactionResponseDto.class)))),
-            @ApiResponse(responseCode = "401", description = "Unauthorized"),
-            @ApiResponse(responseCode = "403", description = "Forbidden"),
-            @ApiResponse(responseCode = "404", description = "Account not found")
-    })
-    @GetMapping("/me/accounts/{accountId}")
-    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED', 'CLIENT')")
-    public ResponseEntity<List<TransactionResponseDto>>getMyTransactionsByAccount(
-            @Parameter(name = "Account ID", required = true)
-            @PathVariable Long accountId){
-
-        return ResponseEntity.ok(transactionService.getMyTransactionsByAccount(accountId));
-    }
-
     // ----------------------------------
     // Operations (create tx)
     // ---------------------------------

@@ -3,8 +3,9 @@ package com.home_banking_.enums;
 public enum AuditType {
     LOGIN_SUCCESS,
     LOGIN_BLOCKED,
-    TRANSFER,
+    TRANSACTION,
     PAY,
     ERROR,
-    AUTH
+    AUTH,
+    SECURITY
 }

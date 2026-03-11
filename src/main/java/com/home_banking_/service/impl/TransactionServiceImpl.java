@@ -16,7 +16,9 @@ import com.home_banking_.model.Users;
 import com.home_banking_.repository.AccountRepository;
 import com.home_banking_.repository.TransactionRepository;
 import com.home_banking_.repository.UsersRepository;
+import com.home_banking_.service.AuditLogService;
 import com.home_banking_.service.TransactionService;
+import com.home_banking_.service.security.CurrentUserServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -35,65 +37,94 @@ public class TransactionServiceImpl implements TransactionService {
     private final TransactionRepository transactionRepository;
     private final TransactionMapper transactionMapper;
     private final UsersRepository usersRepository;
+    private final CurrentUserServiceImpl currentUserService;
+    private final AuditLogService auditLogService;
 
-    public TransactionServiceImpl(AccountRepository accountRepository, TransactionRepository transactionRepository, TransactionMapper transactionMapper, UsersRepository usersRepository) {
+    public TransactionServiceImpl(AccountRepository accountRepository, TransactionRepository transactionRepository, TransactionMapper transactionMapper, UsersRepository usersRepository, CurrentUserServiceImpl currentUserService, AuditLogService auditLogService) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
         this.transactionMapper = transactionMapper;
         this.usersRepository = usersRepository;
+        this.currentUserService = currentUserService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
     @Override
     public TransactionResponseDto makeTransfer(TransactionRequestDto dto) {
+        String email = currentUserService.getCurrentUserEmail();
+        Long userId = currentUserService.getCurrentUserId();
 
-        // Email del JWT
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        log.info("[TRANSFER_INIT] userEmail={} originAccountId={} destinationAccountId={} amount={}",
+                email, dto.getOriginAccountId(), dto.getDestinationAccountId(), dto.getAmount());
 
-        // Validaciones básica
         if (dto.getOriginAccountId().equals(dto.getDestinationAccountId())) {
+            log.warn("[TRANSFER_REJECTED] Transfer between identical account is not allowed. UserEmail={} accountId={}",
+                    email, dto.getOriginAccountId());
             throw new BusinessException("Origin and destination accounts must be different");
         }
 
+        auditLogService.registerEvent(
+                userId,
+                "Transfer rejected: origin and destination accounts are the same. accountId=" + dto.getOriginAccountId(),
+                "TRANSFER_REJECTED",
+                "SECURITY"
+        );
 
         BigDecimal amount = dto.getAmount();
         validateAmount(amount);
 
-        // Origen debe pertenecer al usuario autenticado
         Account origin = accountRepository.findByIdAndUsersEmailForUpdate(dto.getOriginAccountId(), email)
-                .orElseThrow(() -> new ResourceNotFoundException("Origin account not found"));
+                .orElseThrow(()-> {
+                    log.error("[TRANSFER_FAILED] Origin account not found or access denied. userEmail={} originAccountId={}",
+                            email,dto.getOriginAccountId());
+                    return new ResourceNotFoundException("Origin account not found ");
+                });
 
         Account destination = accountRepository.findByIdForUpdate(dto.getDestinationAccountId())
-                .orElseThrow(() -> new ResourceNotFoundException("Destination account not found"));
+                        .orElseThrow(()-> {
+                            log.warn("[TRANSFER_REJECTED] Destination account not found. DestinationAccountId={}",
+                                    dto.getDestinationAccountId());
+                            return new ResourceNotFoundException("Destination account not found ");
+                        });
 
         validateAccountActive(origin, "Origin");
         validateAccountActive(destination, "Destination");
 
-        // Reglas de negocio
 
         if (origin.getBalance().compareTo(amount) < 0) {
-            log.warn("Insufficient balance. originId={} balance={} amount={}",
+            log.warn("[TRANSFER_REJECTED] Insufficient balance. originAccountId={} balance={} requiredAmount={}",
                     origin.getId(), origin.getBalance(), amount);
             throw new BusinessException("Insufficient balance for transfer");
         }
 
-        //Aplicar movimientos
+        auditLogService.registerEvent(
+                userId,
+                "Transfer rejected due to insufficient balance. originAccountId=" + origin.getId()
+                + ", destinationAccountId=" + destination.getId()
+                + ", amount= " + amount,
+                "TRANSFER_REJECTED",
+                "SECURITY"
+        );
+
         origin.setBalance(origin.getBalance().subtract(amount));
         destination.setBalance(destination.getBalance().add(amount));
 
-        //Registrar transacción
-        Transaction tx = new Transaction();
-        tx.setAmount(amount);
-        tx.setAccountOrigin(origin);
-        tx.setAccountDestiny(destination);
-        tx.setCreationDate(LocalDateTime.now());
-        tx.setStatusTransaction(StatusTransaction.COMPLETED);
-        tx.setTypeTransaction(TransactionOperationType.TRANSFER);
-
+        Transaction tx = buildTransferTransaction(origin, destination, amount);
         transactionRepository.save(tx);
 
-        log.info("Transfer OK: origin={} dest={} amount={} txId={}",
-                origin.getId(), destination.getId(), amount, tx.getId());
+        auditLogService.registerEvent(
+                userId,
+                "Transfer completed successfully. transactionId=" + tx.getId()
+                + ", originAccountId=" + origin.getId()
+                + ", destinationAccountId=" + destination.getId()
+                + ", amount=" + amount,
+                "TRANSFER_COMPLETED",
+                "TRANSACTION"
+        );
+
+        log.info("[TRANSFER_SUCCESS] transactionId={} originAccountId={} destinationAccountId={} amount={}",
+                tx.getId(), origin.getId(), destination.getId(), amount);
 
         return transactionMapper.toDto(tx);
     }
@@ -101,29 +132,38 @@ public class TransactionServiceImpl implements TransactionService {
     @Transactional
     @Override
     public TransactionResponseDto makeDeposit(DepositRequestDto dto) {
+        String email = currentUserService.getCurrentUserEmail();
+        String userId = String.valueOf(currentUserService.getCurrentUserId());
 
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        log.info("[WITHDRAW_INIT] userEmail={} accountId={} amount={}", email, dto.getAccountId(), dto.getAmount());
 
         BigDecimal amount = dto.getAmount();
         validateAmount(amount);
 
         Account account = accountRepository.findByIdAndUsersEmailForUpdate(dto.getAccountId(), email)
-                .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
+                        .orElseThrow(()->{
+                            log.error("[WITHDRAW_FAILED] Account not found. accountId={} userEmail={}", dto.getAccountId(), email);
+                            return new ResourceNotFoundException("Account not found");
+                        });
 
         validateAccountActive(account, "Account");
 
         account.setBalance(account.getBalance().add(amount));
 
-        Transaction tx = new Transaction();
-        tx.setAmount(amount);
-        tx.setAccountDestiny(account); // depósito entra (destino)
-        tx.setCreationDate(LocalDateTime.now());
-        tx.setStatusTransaction(StatusTransaction.COMPLETED);
-        tx.setTypeTransaction(TransactionOperationType.DEPOSIT);
+        Transaction tx = buildDepositTransaction(account,amount);
 
         transactionRepository.save(tx);
 
-        log.info("Deposit OK: account={} amount={} txId={}", account.getId(), amount, tx.getId());
+        auditLogService.registerEvent(
+                Long.valueOf(userId),
+                "Deposit completed successfully. transactionId " + tx.getId()
+                + ", accountId=" + account.getId()
+                + ", amount=" + amount,
+                "DEPOSIT_COMPLETED",
+                "TRANSACTION"
+        );
+
+        log.info("[WITHDRAW_SUCCESS]: accountId={} amount={} transactionId={}", account.getId(), amount, tx.getId());
 
         return transactionMapper.toDto(tx);
     }
@@ -131,35 +171,53 @@ public class TransactionServiceImpl implements TransactionService {
     @Transactional
     @Override
     public TransactionResponseDto makeWithdraw(WithDrawRequestDto dto) {
-
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        String email = currentUserService.getCurrentUserEmail();
+        String userId = String.valueOf(currentUserService.getCurrentUserId());
+        log.info("[WITHDRAW_INIT] userEmail={} AccountId={} Amount={}", email, dto.getAccountId(), dto.getAmount());
 
         BigDecimal amount = dto.getAmount();
         validateAmount(amount);
 
-        Account account = accountRepository.findByIdAndUsersEmail(dto.getAccountId(), email)
-                .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
+        Account account = accountRepository.findByIdAndUsersEmailForUpdate(dto.getAccountId(), email)
+                        .orElseThrow(()-> {
+                            log.error("[WITHDRAW_REJECTED] Account not found or access denied. userEmail={} accountId={}",
+                                    email,dto.getAccountId());
+                            return new ResourceNotFoundException("Account not found");
+                        });
 
         validateAccountActive(account, "Account");
 
         if (account.getBalance().compareTo(amount) < 0) {
-            log.warn("Insufficient balance. accountId={} balance={} amount={}",
+            log.warn("[WITHDRAW_REJECTED] Insufficient balance. accountId={} balance={} requiredAmount={}",
                     account.getId(), account.getBalance(), amount);
             throw new BusinessException("Insufficient balance for withdraw");
         }
 
+        auditLogService.registerEvent(
+                Long.valueOf(userId),
+                "Withdraw rejected due to insufficient balance. accountId=" + account.getId()
+                + ", balance=" + account.getBalance()
+                + ", amount=" + amount,
+                "WITHDRAW_REJECTED",
+                "SECURITY"
+        );
+
         account.setBalance(account.getBalance().subtract(amount));
 
-        Transaction tx = new Transaction();
-        tx.setAmount(amount);
-        tx.setAccountOrigin(account); // retiro sale (origen)
-        tx.setCreationDate(LocalDateTime.now());
-        tx.setStatusTransaction(StatusTransaction.COMPLETED);
-        tx.setTypeTransaction(TransactionOperationType.WITHDRAW);
-
+        Transaction tx = buildWithdrawTransaction(account,amount);
         transactionRepository.save(tx);
 
-        log.info("Withdraw OK: account={} amount={} txId={}", account.getId(), amount, tx.getId());
+        auditLogService.registerEvent(
+                Long.valueOf(userId),
+                "Withdraw completed successfully. transactionId=" + tx.getId()
+                + ", accountId=" + account.getId()
+                + ", amount=" + amount,
+                "WITHDRAW_COMPLETED",
+                "TRANSACTION"
+        );
+
+        log.info("[WITHDRAW_SUCCESS] : transactionId={} accountId={} amount={} newBalance={}",
+                tx.getId(), account.getId(), amount, account.getBalance());
 
         return transactionMapper.toDto(tx);
     }
@@ -167,38 +225,39 @@ public class TransactionServiceImpl implements TransactionService {
     @Transactional(readOnly = true)
     @Override
     public List<TransactionResponseDto> getTransactionsByAccount(Long accountId) {
-        log.info("Querying transactions for ID account: {}", accountId);
+        String email = currentUserService.getCurrentUserEmail();
 
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(()->  new ResourceNotFoundException(
-                        "Account not found"
-                ));
+        log.info("[FETCH_ACCOUNT_TRANSACTIONS_INIT] userEmail={} accountId={}",  email,accountId);
 
-        List<Transaction> transactions = transactionRepository.findByAccountId(accountId);
+        accountRepository.findByIdAndUsersEmail(accountId, email)
+                .orElseThrow(()->{
+                    log.warn("[FETCH_ACCOUNT_TRANSACTIONS_REJECTED] account not found or access denied. userEmail={} accountId={}",
+                            email, accountId);
+                    return new ResourceNotFoundException("account not found");
+                });
 
-        log.info("They found each other {} Transactions associated with the ID account: {}", transactions.size(), accountId);
+        List<Transaction> transactions = transactionRepository.findMyTransactionsByAccount(email, accountId);
+
+        log.info("[FETCH_ACCOUNT_TRANSACTIONS_SUCCESS] userEmail={} accountId={} transactionSize={}"
+                ,email, accountId, transactions.size());
 
         return transactions.stream()
                 .map(transactionMapper::toDto)
                 .collect(Collectors.toList());
     }
 
-    @Override
-    public List<TransactionResponseDto> getMyTransactionsByAccount(Long accountId) {
 
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-
-       return transactionRepository.findMyTransactionsByAccount(email, accountId).stream()
-               .map(transactionMapper::toDto)
-               .toList();
-    }
-
+    @Transactional(readOnly = true)
     @Override
     public List<TransactionResponseDto> getMyTransactions() {
+        String email = currentUserService.getCurrentUserEmail();
 
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        log.info("[FETCH_MY_TRANSACTIONS_INIT] userEmail={}", email);
 
         List<Transaction> txs = transactionRepository.findMyTransactions(email);
+
+        log.info("[FETCH_MY_TRANSACTIONS_SUCCESS] userEmail={} transactionsSize={}", email, txs.size());
+
         return txs.stream()
                 .map(transactionMapper::toDto)
                 .toList();
@@ -207,21 +266,24 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Transactional(readOnly = true)
     public List<TransactionResponseDto> getTransactionsByUser(Long userId) {
-        log.info("Querying transactions for user ID: {}", userId);
+        String adminEmail = currentUserService.getCurrentUserEmail();
 
-        Users users = usersRepository.findById(userId)
-                .orElseThrow(()-> new ResourceNotFoundException(
-                        "User not found"
-                ));
+        log.info("[FETCH_USER_TRANSACTIONS_INIT] adminEmail={} requestedUserId={}", adminEmail, userId);
+
+       if (!usersRepository.existsById(userId)) {
+           log.warn("[FETCH_USER_TRANSACTIONS_REJECTED] user not found. adminEmail={} requestedUserId={}",
+                   adminEmail, userId);
+           throw new ResourceNotFoundException("User not found");
+       }
 
         List<Transaction> transactions = transactionRepository.findAllByUserId(userId);
 
-        log.info("They found each other {} Transactions associated with user ID: {}", transactions.size(), userId);
+        log.info("[FETCH_USER_TRANSACTIONS_SUCCESS] adminEmail={} requestedUserId={} transactionSize={}",
+                adminEmail, userId, transactions.size());
 
         return transactions.stream()
                 .map(transactionMapper::toDto)
                 .collect(Collectors.toList());
-
     }
 
     // -------------------
@@ -239,7 +301,38 @@ public class TransactionServiceImpl implements TransactionService {
 
     private void validateAccountActive(Account acc, String label) {
         if (acc.getStatusAccount() != StatusAccount.ACTIVE) {
-            throw new BusinessException(label + "account is not active");
+            throw new BusinessException(label + " account is not active");
         }
+    }
+
+    private Transaction buildTransferTransaction(Account origin, Account destination, BigDecimal amount) {
+        Transaction tx = new Transaction();
+        tx.setAmount(amount);
+        tx.setAccountOrigin(origin);
+        tx.setAccountDestiny(destination);
+        tx.setCreationDate(LocalDateTime.now());
+        tx.setStatusTransaction(StatusTransaction.COMPLETED);
+        tx.setTypeTransaction(TransactionOperationType.TRANSFER);
+        return tx;
+    }
+
+    private Transaction buildDepositTransaction(Account account, BigDecimal amount) {
+        Transaction tx = new Transaction();
+        tx.setAmount(amount);
+        tx.setAccountDestiny(account);
+        tx.setCreationDate(LocalDateTime.now());
+        tx.setStatusTransaction(StatusTransaction.COMPLETED);
+        tx.setTypeTransaction(TransactionOperationType.DEPOSIT);
+        return tx;
+    }
+
+    private Transaction buildWithdrawTransaction(Account account, BigDecimal amount) {
+        Transaction tx = new Transaction();
+        tx.setAmount(amount);
+        tx.setAccountOrigin(account);
+        tx.setCreationDate(LocalDateTime.now());
+        tx.setStatusTransaction(StatusTransaction.COMPLETED);
+        tx.setTypeTransaction(TransactionOperationType.WITHDRAW);
+        return tx;
     }
 }
