@@ -12,15 +12,14 @@ import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.mappers.TransactionMapper;
 import com.home_banking_.model.Account;
 import com.home_banking_.model.Transaction;
-import com.home_banking_.model.Users;
 import com.home_banking_.repository.AccountRepository;
 import com.home_banking_.repository.TransactionRepository;
 import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.AuditLogService;
 import com.home_banking_.service.TransactionService;
+import com.home_banking_.service.security.CurrentUserService;
 import com.home_banking_.service.security.CurrentUserServiceImpl;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +36,7 @@ public class TransactionServiceImpl implements TransactionService {
     private final TransactionRepository transactionRepository;
     private final TransactionMapper transactionMapper;
     private final UsersRepository usersRepository;
-    private final CurrentUserServiceImpl currentUserService;
+    private final CurrentUserService currentUserService;
     private final AuditLogService auditLogService;
 
     public TransactionServiceImpl(AccountRepository accountRepository, TransactionRepository transactionRepository, TransactionMapper transactionMapper, UsersRepository usersRepository, CurrentUserServiceImpl currentUserService, AuditLogService auditLogService) {
