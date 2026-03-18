@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "token", indexes = {
-        @Index(name = "idx_token_user_valid", columnList = "user_id")
+        @Index(name = "idx_token_user_id", columnList = "user_id")
 }, uniqueConstraints = @UniqueConstraint(name = "uq_token", columnNames = "token"))
 @Data
 @Builder
@@ -31,9 +31,10 @@ public class Token {
     private boolean expired;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
     private JwtTokenType jwtTokenType;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private Users user;
 }

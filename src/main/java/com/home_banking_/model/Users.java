@@ -1,6 +1,7 @@
 package com.home_banking_.model;
 
 import com.home_banking_.enums.Rol;
+import com.home_banking_.enums.UserStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -31,6 +32,9 @@ public class Users {
 
     @Enumerated(EnumType.STRING)
     private Rol rol;
+
+    @Enumerated(EnumType.STRING)
+    private UserStatus userStatus;
 
     @OneToMany(mappedBy = "users", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Account> accounts;

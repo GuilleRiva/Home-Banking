@@ -13,10 +13,8 @@ public interface TokenRepository extends JpaRepository<Token, Long> {
 
     Optional<Token> findByToken(String token);
 
-    List<Token> findByRevokedTrueOrExpiredTrue ();
-
     boolean existsByTokenAndExpiredFalseAndRevokedFalse(String token);
 
-    List<Token> findByUser_IdAndTokenTypeAndExpiredFalseAndRevokedFalse(Long userId, JwtTokenType jwtTokenType);
+    List<Token> findByUser_IdAndJwtTokenTypeAndExpiredFalseAndRevokedFalse(Long userId, JwtTokenType jwtTokenType);
 
 }
