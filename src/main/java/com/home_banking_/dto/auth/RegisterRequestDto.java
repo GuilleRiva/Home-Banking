@@ -35,4 +35,7 @@ public class RegisterRequestDto {
     @Schema(description = "User password", example = "SafePassword1234")
     private String password;
 
+    @NotBlank(message = "Dni is required")
+    @Schema(description = "Dni", example = "83039691")
+    private String dni;
 }

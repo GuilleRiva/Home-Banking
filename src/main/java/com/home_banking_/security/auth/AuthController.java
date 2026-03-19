@@ -1,9 +1,6 @@
 package com.home_banking_.security.auth;
 
-import com.home_banking_.dto.auth.AuthRequest;
-import com.home_banking_.dto.auth.AuthResponse;
-import com.home_banking_.dto.auth.ChangePasswordRequest;
-import com.home_banking_.dto.auth.RegisterRequestDto;
+import com.home_banking_.dto.auth.*;
 import com.home_banking_.security.token.RefreshTokenRequestDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,7 +23,7 @@ public class AuthController {
 
     @Operation(summary = "Register a new user", description = "Create a new user in the database")
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register (@RequestBody @Valid RegisterRequestDto request){
+    public ResponseEntity<RegisterResponseDto> register (@RequestBody @Valid RegisterRequestDto request){
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
     }
 

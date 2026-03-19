@@ -3,9 +3,7 @@ package com.home_banking_.model;
 import com.home_banking_.enums.Rol;
 import com.home_banking_.enums.UserStatus;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,11 +17,17 @@ public class Users {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(nullable = false, length = 100)
     private String name;
+    @Column(nullable = false, length = 100)
     private String surname;
+    @Column(nullable = false, unique = true, length = 150)
     private String email;
+    @Column(nullable = false)
     private String password;
+    @Column(nullable = false, unique = true, length = 20)
     private String DNI;
+    @Column(nullable = false)
     private LocalDateTime registrationDate;
 
     private int failedLoginAttempts;
@@ -34,6 +38,7 @@ public class Users {
     private Rol rol;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
     private UserStatus userStatus;
 
     @OneToMany(mappedBy = "users", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

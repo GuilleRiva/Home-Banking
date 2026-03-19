@@ -1,12 +1,10 @@
 package com.home_banking_.security.auth;
 
-import com.home_banking_.dto.auth.AuthRequest;
-import com.home_banking_.dto.auth.AuthResponse;
-import com.home_banking_.dto.auth.RegisterRequestDto;
+import com.home_banking_.dto.auth.*;
 import com.home_banking_.dto.request.IPAddressRequestDto;
-import com.home_banking_.dto.auth.ChangePasswordRequest;
 import com.home_banking_.enums.Rol;
 import com.home_banking_.enums.JwtTokenType;
+import com.home_banking_.enums.UserStatus;
 import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.model.Users;
 import com.home_banking_.repository.UsersRepository;
@@ -33,8 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.Locale;
-import java.util.Optional;
 
 @Slf4j
 @Service
@@ -49,7 +45,6 @@ public class AuthServiceImpl implements AuthService{
     private final AuditLogService auditLogService;
     private final IPAddressService ipAddressService;
     private final GeoLocationService geoLocationService;
-    private final CurrentUserService currentUserService;
 
 
     @Value("${application.security.jwt.expiration-ms:900000}")
@@ -57,7 +52,7 @@ public class AuthServiceImpl implements AuthService{
 
     @Override
     @Transactional
-    public AuthResponse register(RegisterRequestDto request) {
+    public RegisterResponseDto register(RegisterRequestDto request) {
         String normalizedEmail = request.getEmail().trim().toLowerCase();
 
         if (usersRepository.existsByEmail(normalizedEmail)) {
@@ -69,24 +64,28 @@ public class AuthServiceImpl implements AuthService{
         users.setSurname(request.getSurname().trim());
         users.setEmail(normalizedEmail);
         users.setPassword(passwordEncoder.encode(request.getPassword()));
+        users.setDNI(request.getDni().trim());
+        users.setRegistrationDate(LocalDateTime.now());
         users.setRol(Rol.CLIENT);
+        users.setUserStatus(UserStatus.PENDING_ACTIVATION);
+        users.setFailedLoginAttempts(0);
+        users.setAccountLocked(false);
+        users.setLockTime(null);
 
         usersRepository.save(users);
 
         auditLogService.registerEvent(
                 users.getId(),
-                "Successfully registered user" + users,
+                "User registered successfully with status" + users.getUserStatus(),
                 "REGISTER_SUCCESS",
                 "AUTH"
         );
 
-        String accessToken = jwtService.generateToken(UserDetailsImpl.build(users));
-        String refreshToken = jwtService.generateRefreshToken(users);
-
-        savedUserToken(users, accessToken, JwtTokenType.ACCESS);
-        savedUserToken(users, refreshToken, JwtTokenType.REFRESH);
-
-        return new AuthResponse(accessToken, refreshToken, "Bearer", accessExpirationMs / 1000);
+        return new RegisterResponseDto(
+                "Registration completed successfully. Account activation pending.",
+                users.getUserStatus().name(),
+                users.getEmail()
+        );
     }
 
     @Transactional
@@ -107,8 +106,8 @@ public class AuthServiceImpl implements AuthService{
         String normalizedEmail = request.getEmail().trim().toLowerCase();
 
         Users user = usersRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new UsernameNotFoundException("Invalid credentials"));
-
+                .orElseThrow(() -> new BusinessException("Invalid credentials"));
+        
         if (user.isAccountLocked()) {
             if (user.getLockTime() != null &&
                     Duration.between(user.getLockTime(), LocalDateTime.now()).toMinutes() < 15) {
@@ -126,6 +125,9 @@ public class AuthServiceImpl implements AuthService{
                 user.setLockTime(null);
                 usersRepository.save(user);
             }
+        }
+        if (user.getUserStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException("Authentication failed");
         }
 
         Authentication auth;
