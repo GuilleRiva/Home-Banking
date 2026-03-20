@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -76,13 +77,16 @@ public class AuthServiceImpl implements AuthService{
 
         auditLogService.registerEvent(
                 users.getId(),
-                "User registered successfully with status" + users.getUserStatus(),
+                "User registered successfully with status " + users.getUserStatus(),
                 "REGISTER_SUCCESS",
                 "AUTH"
         );
 
+        log.info("User registered successfully with pending activation. userId={}, status={}",
+                users.getId(), users.getUserStatus());
+
         return new RegisterResponseDto(
-                "Registration completed successfully. Account activation pending.",
+                "Registration completed successfully. Account activation pending. ",
                 users.getUserStatus().name(),
                 users.getEmail()
         );
@@ -107,7 +111,7 @@ public class AuthServiceImpl implements AuthService{
 
         Users user = usersRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new BusinessException("Invalid credentials"));
-        
+
         if (user.isAccountLocked()) {
             if (user.getLockTime() != null &&
                     Duration.between(user.getLockTime(), LocalDateTime.now()).toMinutes() < 15) {
@@ -118,15 +122,27 @@ public class AuthServiceImpl implements AuthService{
                         "LOGIN_BLOCKED",
                         "AUTH"
                 );
+                log.warn("Blocked login attempt. userId={}, ip={}", user.getId(), ipAddress);
+
                 throw new BusinessException("Authentication failed");
             } else {
                 user.setAccountLocked(false);
                 user.setFailedLoginAttempts(0);
                 user.setLockTime(null);
                 usersRepository.save(user);
+
+                log.info("User account unlocked after lock period elapsed. userId={}", user.getId());
             }
         }
         if (user.getUserStatus() != UserStatus.ACTIVE) {
+            auditLogService.registerEvent(
+                    user.getId(),
+                    "Login denied due to user status: " + user.getUserStatus() + "from IP: " + ipAddress,
+                    "LOGIN_DENIED",
+                    "AUTH"
+            );
+            log.warn("Login denied due to inactive status. userId={}, status={}, ip={}",
+                    user.getId(), user.getUserStatus(), ipAddress);
             throw new BusinessException("Authentication failed");
         }
 
@@ -137,6 +153,8 @@ public class AuthServiceImpl implements AuthService{
             );
         } catch (BadCredentialsException e) {
             int attempts = user.getFailedLoginAttempts() + 1;
+            log.warn("Failed login attempt. userId={}, attempts={}, ip={}",
+                    user.getId(), attempts, ipAddress);
             user.setFailedLoginAttempts(attempts);
 
             if (attempts >= 3) {
@@ -167,6 +185,9 @@ public class AuthServiceImpl implements AuthService{
                     "LOGIN_BLOCKED",
                     "AUTH"
             );
+            log.warn("Login blocked due to suspicious IP. userId={}, ip={}",
+                    user.getId(), ipAddress);
+
             throw new BusinessException("Authentication failed");
         }
 
@@ -191,7 +212,7 @@ public class AuthServiceImpl implements AuthService{
                 "AUTH"
         );
 
-        log.info("Successful authentication for userId={}", user.getId());
+        log.info("Successful login. userId={}, ip={}", user.getId(), ipAddress);
 
         return new AuthResponse(accessToken, refreshToken, "Bearer", accessExpirationMs / 1000);
     }
@@ -201,26 +222,53 @@ public class AuthServiceImpl implements AuthService{
     public AuthResponse refreshToken(String refreshToken) {
 
         if (!jwtService.isTokenValid(refreshToken)) {
-            throw new BusinessException("Invalid credentials");
+            log.warn("Refresh token validation failed due to invalid JWT");
+            throw new BusinessException("Authentication failed");
         }
 
         Token storedToken = tokenRepository.findByToken(refreshToken)
-                .orElseThrow(()-> new BusinessException("Invalid credentials"));
+                .orElseThrow(() -> {
+                    log.warn("Refresh token validation failed because token was not found in persistence");
+                    return new BusinessException("Authentication failed");
+                });
 
         if (storedToken.getJwtTokenType() != JwtTokenType.REFRESH) {
-            throw new BusinessException("Invalid credentials");
+            log.warn("Refresh token validation failed du to invalid token type");
+            throw new BusinessException("Authentication failed");
         }
+
         if (storedToken.isExpired() || storedToken.isRevoked()) {
-            throw new BusinessException("authentication failed");
+            log.warn("Refresh token rejected because it is expired or revoked");
+            throw new BusinessException("Authentication failed");
         }
 
         String email = jwtService.extractUsername(refreshToken);
 
         Users users = usersRepository.findByEmail(email)
-                .orElseThrow(()-> new UsernameNotFoundException("authentication failed"));
+                .orElseThrow(()-> new BusinessException("Authentication failed"));
+
+        if (users.getUserStatus() != UserStatus.ACTIVE) {
+            log.warn("Refresh token denied due to inactive user status. userId={}, status={}",
+                    users.getId(), users.getUserStatus());
+            auditLogService.registerEvent(
+                    users.getId(),
+                    "Refresh token denied due to user status: " + users.getUserStatus(),
+                    "REFRESH_FAILED",
+                    "AUTH"
+            );
+            throw new BusinessException("Authentication failed");
+        }
 
         if (users.isAccountLocked()) {
-            throw new BusinessException("authentication failed");
+            log.warn("Refresh token denied due because is locked. userId={}",
+                    users.getId());
+            auditLogService.registerEvent(
+                    users.getId(),
+                    "Refresh token denied because account is locked",
+                    "REFRESH_FAILED",
+                    "AUTH"
+            );
+            throw new BusinessException("Authentication failed");
         }
 
         revokeToken(refreshToken);
@@ -232,6 +280,14 @@ public class AuthServiceImpl implements AuthService{
         savedUserToken(users, newAccessToken, JwtTokenType.ACCESS);
         savedUserToken(users, newRefreshToken, JwtTokenType.REFRESH);
 
+        auditLogService.registerEvent(
+                users.getId(),
+                "Refresh token processed successfully",
+                "REFRESH_SUCCESS",
+                "AUTH"
+        );
+        log.info("Refresh token processed successfully. userId={}", users.getId());
+
         long expiresInSeconds = accessExpirationMs / 1000;
 
         return new AuthResponse(newAccessToken, newRefreshToken, "Bearer", expiresInSeconds);
@@ -242,28 +298,51 @@ public class AuthServiceImpl implements AuthService{
     public void logout(String bearerToken) {
 
         if (bearerToken == null || !bearerToken.startsWith("Bearer ")){
-            throw new BusinessException("Invalid credentials");
+            log.warn("Logout rejected due to invalid bearer token format");
+            throw new BusinessException("Authentication failed");
         }
 
         String token = bearerToken.substring(7).trim();
 
-        logoutRawToken(token);
+        Optional<Token> storedToken = logoutRawToken(token);
+
+        storedToken.ifPresent(t -> auditLogService.registerEvent(
+                t.getUser().getId(),
+                "Logout completed succcessfully",
+                "LOGOUT_SUCCESS",
+                "AUTH"
+        ));
+        log.info("Logout completed successfully");
     }
 
     @Transactional
     @Override
     public void changePassword(ChangePasswordRequest request, String userEmail, String ipAddress) {
-        Users user = usersRepository.findByEmail(userEmail)
-                .orElseThrow(()-> new UsernameNotFoundException("invalid credentials"));
+        String normalizedEmail= userEmail.trim().toLowerCase();
+
+        Users user = usersRepository.findByEmail(normalizedEmail)
+                .orElseThrow(()-> new BusinessException("Authentication failed"));
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            log.warn("Password change failed due to invalid current password. userId={}, ip={}",
+                    user.getId(), ipAddress);
             auditLogService.registerEvent(user.getId(),
                     "Failed attempt to change password from IP: " + ipAddress,
-                    "PASSWORD_CHANGE_FAILED", "SECURITY");
+                    "PASSWORD_CHANGE_FAILED",
+                    "SECURITY");
             throw new BusinessException("Current password is incorrect");
         }
+
         if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
-            throw new BusinessException("authentication failed");
+            log.warn("Password change rejected because new password matches current password. userId={}, ip={}",
+                    user.getId(), ipAddress);
+            auditLogService.registerEvent(
+                    user.getId(),
+                    "Password change rejected because new password matches current password from IP: " + ipAddress,
+                    "PASSWORD_CHANGE_FAILED",
+                    "SECURITY");
+
+            throw new BusinessException("Authentication failed");
         }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
@@ -273,17 +352,19 @@ public class AuthServiceImpl implements AuthService{
 
         String location = geoLocationService.getLocationFromIP(ipAddress);
         auditLogService.registerEvent(user.getId(),
-                "Password change successful from IP:" + ipAddress + "(" + location + ")",
-                "PASSWORD_CHANGED", "SECURITY");
+                "Password change successful from IP: " + ipAddress + "(" + location + ")",
+                "PASSWORD_CHANGED",
+                "SECURITY");
+
+        log.info("Password changed successfully. userId={}, ip={}", user.getId(), ipAddress);
     }
 
     @Transactional
-    private void logoutRawToken(String token){
-
-        tokenRepository.findByToken(token).ifPresent(t -> {
+    private Optional<Token>logoutRawToken(String token){
+       return tokenRepository.findByToken(token).map(t -> {
             t.setRevoked(true);
             t.setExpired(true);
-            tokenRepository.save(t);
+            return tokenRepository.save(t);
         });
     }
 
