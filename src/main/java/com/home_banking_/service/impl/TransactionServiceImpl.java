@@ -18,7 +18,6 @@ import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.AuditLogService;
 import com.home_banking_.service.TransactionService;
 import com.home_banking_.service.security.CurrentUserService;
-import com.home_banking_.service.security.CurrentUserServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,7 +38,7 @@ public class TransactionServiceImpl implements TransactionService {
     private final CurrentUserService currentUserService;
     private final AuditLogService auditLogService;
 
-    public TransactionServiceImpl(AccountRepository accountRepository, TransactionRepository transactionRepository, TransactionMapper transactionMapper, UsersRepository usersRepository, CurrentUserServiceImpl currentUserService, AuditLogService auditLogService) {
+    public TransactionServiceImpl(AccountRepository accountRepository, TransactionRepository transactionRepository, TransactionMapper transactionMapper, UsersRepository usersRepository, CurrentUserService currentUserService, AuditLogService auditLogService) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
         this.transactionMapper = transactionMapper;
@@ -60,51 +59,50 @@ public class TransactionServiceImpl implements TransactionService {
         if (dto.getOriginAccountId().equals(dto.getDestinationAccountId())) {
             log.warn("[TRANSFER_REJECTED] Transfer between identical account is not allowed. UserEmail={} accountId={}",
                     email, dto.getOriginAccountId());
+
+            auditLogService.registerEvent(
+                    userId,
+                    "Transfer rejected: origin and destination accounts are the same. accountId=" + dto.getOriginAccountId(),
+                    "TRANSFER_REJECTED",
+                    "SECURITY");
+
             throw new BusinessException("Origin and destination accounts must be different");
         }
-
-        auditLogService.registerEvent(
-                userId,
-                "Transfer rejected: origin and destination accounts are the same. accountId=" + dto.getOriginAccountId(),
-                "TRANSFER_REJECTED",
-                "SECURITY"
-        );
 
         BigDecimal amount = dto.getAmount();
         validateAmount(amount);
 
         Account origin = accountRepository.findByIdAndUsersEmailForUpdate(dto.getOriginAccountId(), email)
                 .orElseThrow(()-> {
-                    log.error("[TRANSFER_FAILED] Origin account not found or access denied. userEmail={} originAccountId={}",
+                    log.warn("[TRANSFER_REJECTED] Origin account not found or access denied. userEmail={} originAccountId={}",
                             email,dto.getOriginAccountId());
-                    return new ResourceNotFoundException("Origin account not found ");
+                    return new ResourceNotFoundException("Origin account not found");
                 });
 
         Account destination = accountRepository.findByIdForUpdate(dto.getDestinationAccountId())
                         .orElseThrow(()-> {
-                            log.warn("[TRANSFER_REJECTED] Destination account not found. DestinationAccountId={}",
+                            log.warn("[TRANSFER_REJECTED] Destination account not found. destinationAccountId={}",
                                     dto.getDestinationAccountId());
-                            return new ResourceNotFoundException("Destination account not found ");
+                            return new ResourceNotFoundException("Destination account not found");
                         });
 
-        validateAccountActive(origin, "Origin");
-        validateAccountActive(destination, "Destination");
-
+        validateAccountActive(origin, "Origin", "TRANSFER", userId);
+        validateAccountActive(destination, "Destination", "TRANSFER", userId);
 
         if (origin.getBalance().compareTo(amount) < 0) {
             log.warn("[TRANSFER_REJECTED] Insufficient balance. originAccountId={} balance={} requiredAmount={}",
                     origin.getId(), origin.getBalance(), amount);
+
+            auditLogService.registerEvent(
+                    userId,
+                    "Transfer rejected due to insufficient balance. originAccountId=" + origin.getId()
+                            + ", destinationAccountId=" + destination.getId()
+                            + ", amount= " + amount,
+                    "TRANSFER_REJECTED",
+                    "SECURITY"
+            );
             throw new BusinessException("Insufficient balance for transfer");
         }
-
-        auditLogService.registerEvent(
-                userId,
-                "Transfer rejected due to insufficient balance. originAccountId=" + origin.getId()
-                + ", destinationAccountId=" + destination.getId()
-                + ", amount= " + amount,
-                "TRANSFER_REJECTED",
-                "SECURITY"
-        );
 
         origin.setBalance(origin.getBalance().subtract(amount));
         destination.setBalance(destination.getBalance().add(amount));
@@ -132,20 +130,20 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     public TransactionResponseDto makeDeposit(DepositRequestDto dto) {
         String email = currentUserService.getCurrentUserEmail();
-        String userId = String.valueOf(currentUserService.getCurrentUserId());
+        Long userId = currentUserService.getCurrentUserId();
 
-        log.info("[WITHDRAW_INIT] userEmail={} accountId={} amount={}", email, dto.getAccountId(), dto.getAmount());
+        log.info("[DEPOSIT_INIT] userEmail={} accountId={} amount={}", email, dto.getAccountId(), dto.getAmount());
 
         BigDecimal amount = dto.getAmount();
         validateAmount(amount);
 
         Account account = accountRepository.findByIdAndUsersEmailForUpdate(dto.getAccountId(), email)
                         .orElseThrow(()->{
-                            log.error("[WITHDRAW_FAILED] Account not found. accountId={} userEmail={}", dto.getAccountId(), email);
+                            log.warn("[DEPOSIT_REJECTED] Account not found or access denied. accountId={} userEmail={}", dto.getAccountId(), email);
                             return new ResourceNotFoundException("Account not found");
                         });
 
-        validateAccountActive(account, "Account");
+        validateAccountActive(account, "Account", "DEPOSIT", userId);
 
         account.setBalance(account.getBalance().add(amount));
 
@@ -154,15 +152,14 @@ public class TransactionServiceImpl implements TransactionService {
         transactionRepository.save(tx);
 
         auditLogService.registerEvent(
-                Long.valueOf(userId),
-                "Deposit completed successfully. transactionId " + tx.getId()
+                userId,
+                "Deposit completed successfully. transactionId=" + tx.getId()
                 + ", accountId=" + account.getId()
                 + ", amount=" + amount,
                 "DEPOSIT_COMPLETED",
                 "TRANSACTION"
         );
-
-        log.info("[WITHDRAW_SUCCESS]: accountId={} amount={} transactionId={}", account.getId(), amount, tx.getId());
+        log.info("[DEPOSIT_SUCCESS] accountId={} amount={} transactionId={}", account.getId(), amount, tx.getId());
 
         return transactionMapper.toDto(tx);
     }
@@ -171,35 +168,35 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     public TransactionResponseDto makeWithdraw(WithDrawRequestDto dto) {
         String email = currentUserService.getCurrentUserEmail();
-        String userId = String.valueOf(currentUserService.getCurrentUserId());
-        log.info("[WITHDRAW_INIT] userEmail={} AccountId={} Amount={}", email, dto.getAccountId(), dto.getAmount());
+        Long userId = currentUserService.getCurrentUserId();
+        log.info("[WITHDRAW_INIT] userEmail={} accountId={} amount={}", email, dto.getAccountId(), dto.getAmount());
 
         BigDecimal amount = dto.getAmount();
         validateAmount(amount);
 
         Account account = accountRepository.findByIdAndUsersEmailForUpdate(dto.getAccountId(), email)
                         .orElseThrow(()-> {
-                            log.error("[WITHDRAW_REJECTED] Account not found or access denied. userEmail={} accountId={}",
+                            log.warn("[WITHDRAW_REJECTED] Account not found or access denied. userEmail={} accountId={}",
                                     email,dto.getAccountId());
                             return new ResourceNotFoundException("Account not found");
                         });
 
-        validateAccountActive(account, "Account");
+        validateAccountActive(account, "Account", "WITHDRAW", userId);
 
         if (account.getBalance().compareTo(amount) < 0) {
             log.warn("[WITHDRAW_REJECTED] Insufficient balance. accountId={} balance={} requiredAmount={}",
                     account.getId(), account.getBalance(), amount);
-            throw new BusinessException("Insufficient balance for withdraw");
-        }
 
-        auditLogService.registerEvent(
-                Long.valueOf(userId),
-                "Withdraw rejected due to insufficient balance. accountId=" + account.getId()
-                + ", balance=" + account.getBalance()
-                + ", amount=" + amount,
-                "WITHDRAW_REJECTED",
-                "SECURITY"
-        );
+            auditLogService.registerEvent(
+                    userId,
+                    "Withdraw rejected due to insufficient balance. accountId=" + account.getId()
+                            + ", balance=" + account.getBalance()
+                            + ", amount=" + amount,
+                    "WITHDRAW_REJECTED",
+                    "SECURITY"
+            );
+            throw new BusinessException("Insufficient balance for withdrawal");
+        }
 
         account.setBalance(account.getBalance().subtract(amount));
 
@@ -207,7 +204,7 @@ public class TransactionServiceImpl implements TransactionService {
         transactionRepository.save(tx);
 
         auditLogService.registerEvent(
-                Long.valueOf(userId),
+                userId,
                 "Withdraw completed successfully. transactionId=" + tx.getId()
                 + ", accountId=" + account.getId()
                 + ", amount=" + amount,
@@ -215,7 +212,7 @@ public class TransactionServiceImpl implements TransactionService {
                 "TRANSACTION"
         );
 
-        log.info("[WITHDRAW_SUCCESS] : transactionId={} accountId={} amount={} newBalance={}",
+        log.info("[WITHDRAW_SUCCESS] transactionId={} accountId={} amount={} newBalance={}",
                 tx.getId(), account.getId(), amount, account.getBalance());
 
         return transactionMapper.toDto(tx);
@@ -245,7 +242,6 @@ public class TransactionServiceImpl implements TransactionService {
                 .collect(Collectors.toList());
     }
 
-
     @Transactional(readOnly = true)
     @Override
     public List<TransactionResponseDto> getMyTransactions() {
@@ -262,8 +258,8 @@ public class TransactionServiceImpl implements TransactionService {
                 .toList();
     }
 
-
     @Transactional(readOnly = true)
+    @Override
     public List<TransactionResponseDto> getTransactionsByUser(Long userId) {
         String adminEmail = currentUserService.getCurrentUserEmail();
 
@@ -284,7 +280,6 @@ public class TransactionServiceImpl implements TransactionService {
                 .map(transactionMapper::toDto)
                 .collect(Collectors.toList());
     }
-
     // -------------------
     // Helpers
     // ---------------------------
@@ -298,8 +293,18 @@ public class TransactionServiceImpl implements TransactionService {
         }
     }
 
-    private void validateAccountActive(Account acc, String label) {
+    private void validateAccountActive(Account acc, String label, String operation, Long userId) {
         if (acc.getStatusAccount() != StatusAccount.ACTIVE) {
+            log.warn("[{}_REJECTED] {} account is not active. userId={} account={} status={}",
+                    operation, label.toUpperCase(), userId, acc.getId(), acc.getStatusAccount());
+
+            auditLogService.registerEvent(
+                    userId,
+                    operation + "rejected because " + label.toLowerCase() + "account is not active. accountId="
+                    + acc.getId() + ", status=" + acc.getStatusAccount(),
+                    operation + "_REJECTED",
+                    "SECURITY"
+            );
             throw new BusinessException(label + " account is not active");
         }
     }
