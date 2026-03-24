@@ -229,7 +229,7 @@ public class TransactionServiceImpl implements TransactionService {
                 .orElseThrow(()->{
                     log.warn("[FETCH_ACCOUNT_TRANSACTIONS_REJECTED] account not found or access denied. userEmail={} accountId={}",
                             email, accountId);
-                    return new ResourceNotFoundException("account not found");
+                    return new ResourceNotFoundException("Account not found");
                 });
 
         List<Transaction> transactions = transactionRepository.findMyTransactionsByAccount(email, accountId);
@@ -261,20 +261,28 @@ public class TransactionServiceImpl implements TransactionService {
     @Transactional(readOnly = true)
     @Override
     public List<TransactionResponseDto> getTransactionsByUser(Long userId) {
-        String adminEmail = currentUserService.getCurrentUserEmail();
+        String requesterEmail = currentUserService.getCurrentUserEmail();
+        Long requestUserId = currentUserService.getCurrentUserId();
 
-        log.info("[FETCH_USER_TRANSACTIONS_INIT] adminEmail={} requestedUserId={}", adminEmail, userId);
+        log.info("[FETCH_USER_TRANSACTIONS_INIT] requesterEmail={} requestedUserId={}", requesterEmail, userId);
 
        if (!usersRepository.existsById(userId)) {
-           log.warn("[FETCH_USER_TRANSACTIONS_REJECTED] user not found. adminEmail={} requestedUserId={}",
-                   adminEmail, userId);
+           log.warn("[FETCH_USER_TRANSACTIONS_REJECTED] requested user not found. requesterEmail={} requestedUserId={}",
+                   requesterEmail, userId);
            throw new ResourceNotFoundException("User not found");
        }
 
         List<Transaction> transactions = transactionRepository.findAllByUserId(userId);
 
-        log.info("[FETCH_USER_TRANSACTIONS_SUCCESS] adminEmail={} requestedUserId={} transactionSize={}",
-                adminEmail, userId, transactions.size());
+        auditLogService.registerEvent(
+                requestUserId,
+                "Transaction history requested for userId=" + userId,
+                "USER_TRANSACTIONS_VIEWED",
+                "AUDIT"
+        );
+
+        log.info("[FETCH_USER_TRANSACTIONS_SUCCESS] requesterEmail={} requestedUserId={} transactionSize={}",
+                requesterEmail, userId, transactions.size());
 
         return transactions.stream()
                 .map(transactionMapper::toDto)
@@ -295,7 +303,7 @@ public class TransactionServiceImpl implements TransactionService {
 
     private void validateAccountActive(Account acc, String label, String operation, Long userId) {
         if (acc.getStatusAccount() != StatusAccount.ACTIVE) {
-            log.warn("[{}_REJECTED] {} account is not active. userId={} account={} status={}",
+            log.warn("[{}_REJECTED] {} account is not active. userId={} accountId={} status={}",
                     operation, label.toUpperCase(), userId, acc.getId(), acc.getStatusAccount());
 
             auditLogService.registerEvent(
