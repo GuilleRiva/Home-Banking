@@ -15,7 +15,6 @@ import com.home_banking_.repository.LoanRepository;
 import com.home_banking_.service.AuditLogService;
 import com.home_banking_.service.LoanService;
 import com.home_banking_.service.security.CurrentUserService;
-import com.home_banking_.service.security.CurrentUserServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,7 +39,7 @@ public class LoanServiceImpl implements LoanService {
     private static final int MIN_INSTALLMENTS = 1;
     private static final int MAX_INSTALLMENTS = 60;
 
-    public LoanServiceImpl(AccountRepository accountRepository, LoanRepository loanRepository, LoanMapper loanMapper, CurrentUserServiceImpl currentUserService, AuditLogService auditLogService) {
+    public LoanServiceImpl(AccountRepository accountRepository, LoanRepository loanRepository, LoanMapper loanMapper, CurrentUserService currentUserService, AuditLogService auditLogService) {
         this.accountRepository = accountRepository;
         this.loanRepository = loanRepository;
         this.loanMapper = loanMapper;
@@ -52,30 +51,38 @@ public class LoanServiceImpl implements LoanService {
     @Override
     public LoanResponseDto simulateLoans(LoanSimulationRequestDto dto) {
         String email = currentUserService.getCurrentUserEmail();
+        Long userId = currentUserService.getCurrentUserId();
 
         log.info("[LOAN_SIMULATION_INIT] userEmail={} accountId={} amount={} installments={}",
                 email, dto.getAccountId(), dto.getAmount(), dto.getInstallments());
 
         BigDecimal amount = dto.getAmount();
         validateAmount(amount);
+        validateLoanRequest(dto.getAmount(), dto.getInstallments());
 
         Account account = getOwnedAccount(dto.getAccountId(), email);
 
-        log.warn("[LOAN_SIMULATION_REJECTED] Account not found or access denied. userEmail={} accountId={}",
-        email, dto.getAccountId());
-
-        validateAccountActive(account);
-        validateLoanRequest(dto.getAmount(), dto.getInstallments());
+        validateAndTraceActiveAccount(account, "LOAN_SIMULATION","LOAN_SIMULATION_REJECTED", userId);
 
         Loan simulatedLoan = buildLoanFromDto(dto.getAmount(), dto.getInstallments(), account);
 
-        log.info("[LOAN_SIMULATED_SUCCESS] userEmail={} accountId={} amount={} installments={} totalToPay={}",
+        log.info("[LOAN_SIMULATION_SUCCESS] userEmail={} accountId={} amount={} installments={} totalToPay={}",
                 email, dto.getAccountId(), dto.getAmount(), dto.getInstallments(), simulatedLoan.getTotalToPay());
 
+        auditLogService.registerEvent(
+                userId,
+                "Loan simulation completed successfully. accountId=" + account.getId()
+                        + ", amount=" + dto.getAmount()
+                + ", installments=" + dto.getInstallments()
+                + ", totalToPay=" + simulatedLoan.getTotalToPay(),
+                "LOAN_SIMULATED",
+                "LOAN"
+        );
         return loanMapper.toDto(simulatedLoan);
     }
 
     @Transactional
+    @Override
     public LoanResponseDto grantLoan(LoanGrantRequestDto dto) {
         String email = currentUserService.getCurrentUserEmail();
         Long userId = currentUserService.getCurrentUserId();
@@ -85,29 +92,26 @@ public class LoanServiceImpl implements LoanService {
 
         BigDecimal amount = dto.getAmount();
         validateAmount(amount);
+        validateLoanRequest(dto.getAmount(), dto.getInstallments());
 
         Account account = getOwnedAccountForUpdate(dto.getAccountId(), email);
 
-        log.warn("[LOAN_GRANT_REJECTED] account not found or access denied. userEmail={} accountId={}",
-                email, dto.getAccountId());
-
-        validateAccountActive(account);
-        validateLoanRequest(dto.getAmount(), dto.getInstallments());
+        validateAndTraceActiveAccount(account,"LOAN_GRANT", "LOAN_REJECTED", userId);
 
         Optional<Loan> existingLoan = loanRepository.findByAccountId(account.getId());
 
         if (existingLoan.isPresent() && existingLoan.get().getStatusLoan() == LoanStatus.ACTIVE) {
             log.warn("[LOAN_GRANT_REJECTED] Account already has an active loan. accountId={}",
                     account.getId());
+
+            auditLogService.registerEvent(
+                    userId,
+                    "Loan rejected because account already has an active loan. accountId=" + dto.getAccountId(),
+                    "LOAN_REJECTED",
+                    "SECURITY"
+            );
             throw new BusinessException("Account already has an active loan");
         }
-
-        auditLogService.registerEvent(
-                userId,
-                "Loan rejected because account already has an active loan. accountId={}" + dto.getAccountId(),
-                "LOAN_REJECTED",
-                "SECURITY"
-        );
 
         Loan loan = buildLoanFromDto(dto.getAmount(), dto.getInstallments(), account);
         loan.setStatusLoan(LoanStatus.ACTIVE);
@@ -130,8 +134,8 @@ public class LoanServiceImpl implements LoanService {
                 "LOAN_GRANTED",
                 "TRANSACTION"
         );
-
-        log.info("[LOAN_GRANT_SUCCESS] loanId={} accountId={} amount={} currency={} installments={} totalToPay={} endDate={}]",
+        
+        log.info("[LOAN_GRANT_SUCCESS] loanId={} accountId={} amount={} currency={} installments={} totalToPay={} endDate={}",
                 loan.getId(),
                 account.getId(),
                 loan.getAmount(),
@@ -165,13 +169,13 @@ public class LoanServiceImpl implements LoanService {
 
         log.info("[FETCH_LOAN_INIT] userEmail={} accountId={}",email, accountId);
 
-        Account account = getOwnedAccount(accountId, email);
+        getOwnedAccount(accountId, email);
 
         Optional<Loan> loan = loanRepository.findByAccountId(accountId);
 
         if (loan.isPresent()){
-            log.info("[FETCH_LOAN_SUCCESS] userEmail={} accountId={} totalToPay={}",
-                    email,accountId, loan.get().getTotalToPay());
+            log.info("[FETCH_LOAN_SUCCESS] userEmail={} accountId={} loanId={} totalToPay={}",
+                    email, accountId, loan.get().getId(), loan.get().getTotalToPay());
         }else {
             log.warn("[FETCH_LOAN_NOT_FOUND] userEmail={} accountId={}",email, accountId);
         }
@@ -184,19 +188,30 @@ public class LoanServiceImpl implements LoanService {
         if (amount== null || amount.compareTo(BigDecimal.ZERO) <=0) {
             throw new BusinessException("Loan amount must be greater than zero");
         }
-        if (amount.compareTo(MIN_LOAN_AMOUNT) > 0) {
+        if (amount.compareTo(MIN_LOAN_AMOUNT) < 0) {
             throw new BusinessException("Loan amount is below the minimum allowed");
         }
         if (amount.compareTo(MAX_LOAN_AMOUNT) > 0) {
             throw new BusinessException("Loan amount exceeds the maximum allowed");
         }
-        if (installments < MIN_INSTALLMENTS || installments > MIN_INSTALLMENTS) {
+        if (installments < MIN_INSTALLMENTS || installments > MAX_INSTALLMENTS) {
             throw new BusinessException("Invalid number of installments");
         }
     }
 
-    private void validateAccountActive(Account account){
-        if (account.getStatusAccount() != StatusAccount.ACTIVE){
+    private void validateAndTraceActiveAccount(Account account, String logPrefix, String eventType, Long userId) {
+        if (account.getStatusAccount() != StatusAccount.ACTIVE) {
+            log.warn("[{}_REJECTED] Account is not active. userId={} accountId={} status={}",
+                    logPrefix, userId, account.getId(), account.getStatusAccount());
+
+            auditLogService.registerEvent(
+                    userId,
+                    logPrefix + " rejected because account is not active. accountId="
+                            + account.getId() + ", status=" + account.getStatusAccount(),
+                    eventType,
+                    "SECURITY"
+            );
+
             throw new BusinessException(
                     "Account " + account.getId() + " is not active and cannot perform operations"
             );
