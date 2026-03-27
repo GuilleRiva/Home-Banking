@@ -4,5 +4,6 @@ public enum StatusTransaction {
     EARRING,
     COMPLETED,
     FAILED,
+    REJECTED,
     CANCELED
 }

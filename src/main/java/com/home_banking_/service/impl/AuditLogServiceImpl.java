@@ -2,6 +2,9 @@ package com.home_banking_.service.impl;
 
 import com.home_banking_.dto.response.AuditLogResponseDto;
 import com.home_banking_.enums.AuditType;
+import com.home_banking_.enums.PaymentAuditAction;
+import com.home_banking_.enums.StatusTransaction;
+import com.home_banking_.enums.TypeNotification;
 import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.mappers.AuditLogMapper;
@@ -32,8 +35,7 @@ public class AuditLogServiceImpl implements AuditLogService {
 
     }
 
-
-   @Override
+    @Override
     public void registerEvent(Long userId, String message, String typeEvent, String type) {
         log.info("Logging audit event for user ID: {} | Action: {} | Type: {}", userId,typeEvent, type);
 
@@ -41,7 +43,6 @@ public class AuditLogServiceImpl implements AuditLogService {
                 .orElseThrow(()->  new ResourceNotFoundException(
                         "User not found"
                         ));
-
 
         AuditType auditType;
         try {
@@ -51,20 +52,17 @@ public class AuditLogServiceImpl implements AuditLogService {
             throw new BusinessException("Invalid audit type : " + type);
         }
 
-
         AuditLog logEntity = new AuditLog();
         logEntity.setUsers(users);
         logEntity.setAction(typeEvent);
         logEntity.setDescription(message);
         logEntity.setDateTime(LocalDateTime.now());
         logEntity.setIpOrigin("127.0.0.1");//Puedo luego obtener esto desde el request HTTP
-       logEntity.setType(auditType);
-
+        logEntity.setType(auditType);
 
         auditLogRepository.save(logEntity);
         log.info("Audit event successfully logged for user ID: {}", userId);
     }
-
 
     @Override
     public List<AuditLogResponseDto> getLogsByUser(Long userId) {
@@ -76,7 +74,6 @@ public class AuditLogServiceImpl implements AuditLogService {
                 .map(auditLogMapper::toDTO)
                 .toList();
     }
-
 
     @Override
     public List<AuditLogResponseDto> getLogsByType(String type) {
@@ -96,6 +93,10 @@ public class AuditLogServiceImpl implements AuditLogService {
         return logs.stream()
                 .map(auditLogMapper::toDTO)
                 .toList();
+    }
 
+    @Override
+    public void registerPaymentEvent(Long userId, String description, AuditType auditType, PaymentAuditAction paymentAction) {
+        registerEvent(userId, description, auditType.name(), paymentAction.name());
     }
 }

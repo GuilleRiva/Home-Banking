@@ -134,7 +134,7 @@ public class LoanServiceImpl implements LoanService {
                 "LOAN_GRANTED",
                 "TRANSACTION"
         );
-        
+
         log.info("[LOAN_GRANT_SUCCESS] loanId={} accountId={} amount={} currency={} installments={} totalToPay={} endDate={}",
                 loan.getId(),
                 account.getId(),
