@@ -1,8 +1,6 @@
 package com.home_banking_.controllers;
 
-import com.home_banking_.dto.request.DepositRequestDto;
-import com.home_banking_.dto.request.TransactionRequestDto;
-import com.home_banking_.dto.request.WithDrawRequestDto;
+import com.home_banking_.dto.request.*;
 import com.home_banking_.dto.response.TransactionResponseDto;
 import com.home_banking_.service.TransactionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -80,10 +78,10 @@ public class TransactionController {
     }
 
 
-    @Operation(summary = "Deposit money into an account",
+  /*  @Operation(summary = "Deposit money into an account",
     description = "Creates a deposit transaction.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "2010", description = "Deposit completed successfully",
+            @ApiResponse(responseCode = "201", description = "Deposit completed successfully",
             content = @Content(mediaType = "application/json",
             schema = @Schema(implementation = TransactionResponseDto.class))),
             @ApiResponse(responseCode = "400", description = "Invalid request"),
@@ -112,6 +110,49 @@ public class TransactionController {
     @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN','EMPLOYED')")
     public ResponseEntity<TransactionResponseDto> withdraw(@Valid @RequestBody WithDrawRequestDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(transactionService.makeWithdraw(dto));
+    }*/
+
+    @Operation(
+            summary = "Make a customer deposit",
+            description = "Creates a customer transaction for the authenticated user's account"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201",description = "Customer deposit completed successfully",
+            content = @Content(mediaType = "application/json",
+            schema = @Schema(implementation = TransactionResponseDto.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden"),
+            @ApiResponse(responseCode = "404", description = "Account not found")
+
+    })
+    @PostMapping("/customer-deposit")
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN' , 'EMPLOYED'")
+    public ResponseEntity<TransactionResponseDto> makeCustomerDeposit(
+            @Valid @RequestBody CustomerDepositRequestDto dto){
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(transactionService.makeCustomerDeposit(dto));
+    }
+
+    @Operation(
+            summary = "Create an administrative credit",
+            description = "Creates an administrative credit transaction for a target account. Admin/backoffice usage."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Administrative credit completed successfully",
+            content = @Content(mediaType = "application/json",
+            schema = @Schema(implementation = TransactionResponseDto.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden"),
+            @ApiResponse(responseCode = "404", description = "Account not found")
+    })
+    @PostMapping("/admin-credit")
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    public ResponseEntity<TransactionResponseDto> makeAdministrativeCredit(
+            @Valid @RequestBody AdministrativeCreditRequestDto dto) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(transactionService.makeAdministrativeCredit(dto));
     }
 
     //-----------------------------

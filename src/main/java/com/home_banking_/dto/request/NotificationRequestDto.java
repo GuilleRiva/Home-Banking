@@ -17,6 +17,7 @@ import lombok.Setter;
 @Schema(description = "DTO used to create a new notification for a user.")
 public class NotificationRequestDto {
 
+    private Long userId;
 
     @Schema(description = "Notification message content to be displayed to the user", example = "Your transaction was successful.")
     @Size(max = 255, message = "Message must not exceed 255 characters")

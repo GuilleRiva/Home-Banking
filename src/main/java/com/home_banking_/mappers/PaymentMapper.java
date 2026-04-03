@@ -19,7 +19,7 @@ public interface PaymentMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "amount", ignore = true)
     @Mapping(target = "paymentDate", ignore = true)
-    @Mapping(source = "statusPayment", target = "statusPayment", qualifiedByName = "stringToStatusPayment")
+    @Mapping(target = "statusPayment",ignore = true)
     @Mapping(source = "serviceEntity", target = "serviceEntity", qualifiedByName = "stringToServiceEntity")
     Payment toEntity(PaymentRequestDto dto);
 

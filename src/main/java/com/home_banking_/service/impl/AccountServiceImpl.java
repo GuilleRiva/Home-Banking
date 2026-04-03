@@ -194,15 +194,15 @@ public class AccountServiceImpl implements AccountService {
         if (dto.getTypeAccount() == null) {
             throw new BusinessException("Account type is required");
         }
-        if (accountRepository.existsByUsersIdAndAliasIgnoreCase(dto.getAlias())) {
+        if (accountRepository.existsByUsersIdAndAliasIgnoreCase(userId, dto.getAlias())) {
             throw new BusinessException("Alias already in use");
         }
 
-        if (accountRepository.countByUserId(userId) >= MAX_ACCOUNTS_PER_USER) {
+        if (accountRepository.countByUsersId(userId) >= MAX_ACCOUNTS_PER_USER) {
             throw new BusinessException("User has reached the maximum number of accounts");
         }
 
-        if (accountRepository.existsByUserIdAndTypeAccount(userId, dto.getTypeAccount())) {
+        if (accountRepository.existsByUsersIdAndTypeAccount(userId, dto.getTypeAccount())) {
             throw new BusinessException("User already has an account of this type");
         }
     }

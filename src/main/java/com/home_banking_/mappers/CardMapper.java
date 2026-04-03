@@ -18,21 +18,18 @@ public interface CardMapper {
 
 
     @Mapping(source = "typeCard", target = "typeCard", qualifiedByName = "stringToTypeCard")
-    @Mapping(source = "statusCard", target = "statusCard", qualifiedByName = "stringToStatusCard")
+    @Mapping( target = "statusCard",ignore = true)
     Card toEntity(CardRequestDto dto);
-
 
     @Named("statusCardToString")
     static String statusCardToString(StatusCard value){
         return  value != null ? value.name() : null;
     }
 
-
     @Named("typeCardToString")
     static String typeCardToString(TypeCard value){
         return value != null ? value.name() : null;
     }
-
 
     @Named("stringToStatusCard")
     static StatusCard stringToStatusCard(String value){

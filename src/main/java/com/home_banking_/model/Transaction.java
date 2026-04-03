@@ -18,6 +18,7 @@ public class Transaction {
     private Long id;
     private BigDecimal amount;
     private LocalDateTime creationDate;
+    private String description;
 
     @Column(unique = true)
     private String reference;

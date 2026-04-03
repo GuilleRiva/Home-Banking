@@ -38,11 +38,8 @@ public class Account {
     @JoinColumn(name = "user_id")
     private Users users;
 
-
     @OneToMany(mappedBy = "accountOrigin")
     private List<Transaction> transactionOrigin;
-
-
 
     @OneToMany(mappedBy = "account")
     private List<Loan> loans;

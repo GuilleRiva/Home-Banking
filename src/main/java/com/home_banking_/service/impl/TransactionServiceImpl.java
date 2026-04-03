@@ -1,9 +1,8 @@
 package com.home_banking_.service.impl;
 
-import com.home_banking_.dto.request.DepositRequestDto;
-import com.home_banking_.dto.request.TransactionRequestDto;
-import com.home_banking_.dto.request.WithDrawRequestDto;
+import com.home_banking_.dto.request.*;
 import com.home_banking_.dto.response.TransactionResponseDto;
+import com.home_banking_.enums.MovementAccountType;
 import com.home_banking_.enums.StatusAccount;
 import com.home_banking_.enums.StatusTransaction;
 import com.home_banking_.enums.TransactionOperationType;
@@ -19,6 +18,7 @@ import com.home_banking_.service.AuditLogService;
 import com.home_banking_.service.TransactionService;
 import com.home_banking_.service.security.CurrentUserService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -126,7 +126,7 @@ public class TransactionServiceImpl implements TransactionService {
         return transactionMapper.toDto(tx);
     }
 
-    @Transactional
+  /*  @Transactional
     @Override
     public TransactionResponseDto makeDeposit(DepositRequestDto dto) {
         String email = currentUserService.getCurrentUserEmail();
@@ -162,7 +162,7 @@ public class TransactionServiceImpl implements TransactionService {
         log.info("[DEPOSIT_SUCCESS] accountId={} amount={} transactionId={}", account.getId(), amount, tx.getId());
 
         return transactionMapper.toDto(tx);
-    }
+    }*/
 
     @Transactional
     @Override
@@ -218,6 +218,75 @@ public class TransactionServiceImpl implements TransactionService {
         return transactionMapper.toDto(tx);
     }
 
+    @Transactional
+    @Override
+    public TransactionResponseDto makeCustomerDeposit(CustomerDepositRequestDto dto) {
+        String email = currentUserService.getCurrentUserEmail();
+
+        log.info("[CUSTOMER_DEPOSIT_INIT] userEmail={} accountId={} amount={}",
+                email, dto.getAccountId(), dto.getAmount());
+
+        Account account = getOwnedAccountForUpdate(dto.getAccountId(),email);
+        validateAccountActive(account, "Account", "CUSTOMER_DEPOSIT", account.getId());
+        validateAmount(dto.getAmount());
+
+        applyCreditToAccount(account, dto.getAmount());
+
+        Transaction transaction = buildCustomerDepositTransaction(account, dto);
+        Transaction savedTransaction = transactionRepository.save(transaction);
+        accountRepository.save(account);
+
+        auditLogService.registerEvent(
+                account.getUsers().getId(),
+                "Customer deposit completed. transactionId=" + savedTransaction.getId()
+                + ", accountId=" + account.getId()
+                + ", amount=" + dto.getAmount(),
+                "CUSTOMER_DEPOSIT_COMPLETED",
+                "TRANSACTION"
+        );
+
+        log.info("[CUSTOMER_DEPOSIT_SUCCESS] userEmail={} accountId={} transactionId={} amount={}",
+                email, account.getId(), savedTransaction.getId(), savedTransaction.getAmount());
+
+        return transactionMapper.toDto(savedTransaction);
+    }
+
+    @Transactional
+    @PreAuthorize("hasAnyRole('ADMIN','EMPLOYED')")
+    @Override
+    public TransactionResponseDto makeAdministrativeCredit(AdministrativeCreditRequestDto dto) {
+        Long adminUserId= currentUserService.getCurrentUserId();
+
+        log.info("[ADMIN_CREDIT_INIT] accountId={} amount={} reason={}",
+                dto.getAccountId(), dto.getAmount(), dto.getReason());
+
+        Account account = getAccountForUpdate(dto.getAccountId());
+        validateAccountActive(account, "Account", "ADMIN_CREDIT", dto.getAccountId());
+        validateAmount(dto.getAmount());
+        validateReason(dto.getReason());
+
+        applyCreditToAccount(account, dto.getAmount());
+
+        Transaction transaction = buildAdministrativeCreditTransaction(account, dto);
+        Transaction savedTransaction = transactionRepository.save(transaction);
+        accountRepository.save(account);
+
+        auditLogService.registerEvent(
+                adminUserId,
+                "Administrative credit completed. transactionId=" + savedTransaction.getId()
+                + ", targetAccountId=" + account.getId()
+                + ", amount=" + dto.getAmount()
+                + ", reason=" + dto.getReason(),
+                "ADMIN_CREDIT_COMPLETED",
+                "AUDIT"
+        );
+
+        log.info("[ADMIN_CREDIT_SUCCESS] accountId={} transactionId={} amount={}",
+                account.getId(), savedTransaction.getId(), savedTransaction.getAmount());
+
+        return transactionMapper.toDto(savedTransaction);
+    }
+
     @Transactional(readOnly = true)
     @Override
     public List<TransactionResponseDto> getTransactionsByAccount(Long accountId) {
@@ -258,6 +327,7 @@ public class TransactionServiceImpl implements TransactionService {
                 .toList();
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN','EMPLOYED')")
     @Transactional(readOnly = true)
     @Override
     public List<TransactionResponseDto> getTransactionsByUser(Long userId) {
@@ -294,6 +364,7 @@ public class TransactionServiceImpl implements TransactionService {
 
     private void validateAmount(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            log.warn("[AMOUNT_VALIDATION_REJECTED] amount={} reason=Invalid amount", amount);
             throw new BusinessException("Amount must be positive");
         }
         if (amount.scale() > 2) {
@@ -308,12 +379,24 @@ public class TransactionServiceImpl implements TransactionService {
 
             auditLogService.registerEvent(
                     userId,
-                    operation + "rejected because " + label.toLowerCase() + "account is not active. accountId="
+                    operation + " rejected because " + label.toLowerCase() + " account is not active. accountId="
                     + acc.getId() + ", status=" + acc.getStatusAccount(),
                     operation + "_REJECTED",
                     "SECURITY"
             );
             throw new BusinessException(label + " account is not active");
+        }
+    }
+
+    private void validateReason(String reason) {
+        if (reason== null || reason.trim().isEmpty()) {
+            log.warn("[ADMIN_CREDIT_REJECTED] reason=Administrative reason is required");
+            throw new BusinessException("A reason is required for administrative credit");
+        }
+
+        if (reason.trim().length() < 5){
+            log.warn("[ADMIN_CREDIT_REJECTED] reason= Administrative reason too short");
+            throw new BusinessException("The reason must contain at least 5 characters");
         }
     }
 
@@ -346,5 +429,46 @@ public class TransactionServiceImpl implements TransactionService {
         tx.setStatusTransaction(StatusTransaction.COMPLETED);
         tx.setTypeTransaction(TransactionOperationType.WITHDRAW);
         return tx;
+    }
+
+    private Transaction buildAdministrativeCreditTransaction (Account account, AdministrativeCreditRequestDto dto) {
+        Transaction transaction = new Transaction();
+        transaction.setAccountOrigin(null);
+        transaction.setAccountDestiny(account);
+        transaction.setAmount(dto.getAmount());
+        transaction.setCreationDate(LocalDateTime.now());
+        transaction.setTypeTransaction(TransactionOperationType.ADMIN_CREDIT);
+        transaction.setStatusTransaction(StatusTransaction.COMPLETED);
+        transaction.setDescription(dto.getDescription() + " | Reason: " + dto.getReason());
+
+        return transaction;
+    }
+
+    private Transaction buildCustomerDepositTransaction(Account account, CustomerDepositRequestDto dto) {
+        Transaction transaction = new Transaction();
+        transaction.setAccountOrigin(null);
+        transaction.setAccountDestiny(account);
+        transaction.setAmount(dto.getAmount());
+        transaction.setCreationDate(LocalDateTime.now());
+        transaction.setMovementAccountType(MovementAccountType.CREDITO);
+        transaction.setStatusTransaction(StatusTransaction.COMPLETED);
+        transaction.setTypeTransaction(TransactionOperationType.CUSTOMER_DEPOSIT);
+        transaction.setDescription(dto.getDescription());
+
+        return transaction;
+    }
+
+    private Account getOwnedAccountForUpdate(Long accountId, String email) {
+        return accountRepository.findByIdAndUsersEmailForUpdate(accountId, email)
+                .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
+    }
+
+    private Account getAccountForUpdate(Long accountId){
+        return accountRepository.findByIdForUpdate(accountId)
+                .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
+    }
+
+    private void applyCreditToAccount(Account account, BigDecimal amount) {
+        account.setBalance(account.getBalance().add(amount));
     }
 }

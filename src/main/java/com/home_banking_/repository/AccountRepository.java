@@ -16,14 +16,14 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
     Optional<Account> findByAlias(String alias);
 
-    boolean existsByUsersIdAndAliasIgnoreCase(String alias);
+    boolean existsByUsersIdAndAliasIgnoreCase(Long userId,String alias);
     boolean existsByAccountNumber(String accountNumber);
     boolean existsByCBU(String cbu);
 
-    long countByUserId(Long userId);
+    long countByUsersId(Long userId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    boolean existsByUserIdAndTypeAccount(Long userId, TypeAccount typeAccount);
+    boolean existsByUsersIdAndTypeAccount(Long userId, TypeAccount typeAccount);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Account> findByAliasAndUsersEmail(String alias, String email);

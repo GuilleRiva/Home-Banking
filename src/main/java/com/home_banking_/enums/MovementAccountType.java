@@ -4,5 +4,6 @@ public enum MovementAccountType {
     CUENTA_PROPIA,
     CUENTA_TERCERO,
     CUENTA_INTERNA,
-    CUENTA_EXTERNA
+    CUENTA_EXTERNA,
+    CREDITO
 }

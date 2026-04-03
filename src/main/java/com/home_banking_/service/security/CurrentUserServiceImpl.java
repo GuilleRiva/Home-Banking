@@ -6,7 +6,9 @@ import com.home_banking_.model.Users;
 import com.home_banking_.repository.UsersRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
 
+@Service
 public class CurrentUserServiceImpl implements CurrentUserService{
 
     private final UsersRepository usersRepository;
