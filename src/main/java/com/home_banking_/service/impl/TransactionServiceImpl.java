@@ -126,43 +126,6 @@ public class TransactionServiceImpl implements TransactionService {
         return transactionMapper.toDto(tx);
     }
 
-  /*  @Transactional
-    @Override
-    public TransactionResponseDto makeDeposit(DepositRequestDto dto) {
-        String email = currentUserService.getCurrentUserEmail();
-        Long userId = currentUserService.getCurrentUserId();
-
-        log.info("[DEPOSIT_INIT] userEmail={} accountId={} amount={}", email, dto.getAccountId(), dto.getAmount());
-
-        BigDecimal amount = dto.getAmount();
-        validateAmount(amount);
-
-        Account account = accountRepository.findByIdAndUsersEmailForUpdate(dto.getAccountId(), email)
-                        .orElseThrow(()->{
-                            log.warn("[DEPOSIT_REJECTED] Account not found or access denied. accountId={} userEmail={}", dto.getAccountId(), email);
-                            return new ResourceNotFoundException("Account not found");
-                        });
-
-        validateAccountActive(account, "Account", "DEPOSIT", userId);
-
-        account.setBalance(account.getBalance().add(amount));
-
-        Transaction tx = buildDepositTransaction(account,amount);
-
-        transactionRepository.save(tx);
-
-        auditLogService.registerEvent(
-                userId,
-                "Deposit completed successfully. transactionId=" + tx.getId()
-                + ", accountId=" + account.getId()
-                + ", amount=" + amount,
-                "DEPOSIT_COMPLETED",
-                "TRANSACTION"
-        );
-        log.info("[DEPOSIT_SUCCESS] accountId={} amount={} transactionId={}", account.getId(), amount, tx.getId());
-
-        return transactionMapper.toDto(tx);
-    }*/
 
     @Transactional
     @Override
