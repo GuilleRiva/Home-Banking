@@ -72,45 +72,14 @@ public class TransactionController {
     })
     @PostMapping("/transfer")
     @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN', 'EMPLOYED')")
-    public ResponseEntity<TransactionResponseDto> makeTransfer(@Valid @RequestBody TransactionRequestDto dto){
+    public ResponseEntity<TransactionResponseDto> makeTransfer(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @Valid @RequestBody TransactionRequestDto dto){
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(transactionService.makeTransfer(dto));
+        TransactionResponseDto response = transactionService.makeTransfer(idempotencyKey, dto);
+        return ResponseEntity.ok(response);
     }
 
-
-  /*  @Operation(summary = "Deposit money into an account",
-    description = "Creates a deposit transaction.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Deposit completed successfully",
-            content = @Content(mediaType = "application/json",
-            schema = @Schema(implementation = TransactionResponseDto.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid request"),
-            @ApiResponse(responseCode = "401", description = "Unauthorized"),
-            @ApiResponse(responseCode = "403", description = "Forbidden"),
-            @ApiResponse(responseCode = "404", description = "Account not found")
-    })
-    @PostMapping("/deposit")
-    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN', 'EMPLOYED')")
-    public ResponseEntity<TransactionResponseDto> deposit (@Valid @RequestBody DepositRequestDto dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(transactionService.makeDeposit(dto));
-    }
-
-    @Operation(summary = "Withdraw money from an account",
-    description = "Creates a withdraw transaction.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Withdraw completed successfully",
-            content = @Content(mediaType = "application/json",
-            schema = @Schema(implementation = TransactionResponseDto.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid request"),
-            @ApiResponse(responseCode = "401", description = "Unauthorized"),
-            @ApiResponse(responseCode = "403", description = "Forbidden"),
-            @ApiResponse(responseCode = "404", description = "Account not found")
-    })
-    @PostMapping("/withdraw")
-    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN','EMPLOYED')")
-    public ResponseEntity<TransactionResponseDto> withdraw(@Valid @RequestBody WithDrawRequestDto dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(transactionService.makeWithdraw(dto));
-    }*/
 
     @Operation(
             summary = "Make a customer deposit",

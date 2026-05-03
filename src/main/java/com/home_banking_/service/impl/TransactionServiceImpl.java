@@ -1,21 +1,23 @@
 package com.home_banking_.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.home_banking_.dto.request.*;
 import com.home_banking_.dto.response.TransactionResponseDto;
-import com.home_banking_.enums.MovementAccountType;
-import com.home_banking_.enums.StatusAccount;
-import com.home_banking_.enums.StatusTransaction;
-import com.home_banking_.enums.TransactionOperationType;
+import com.home_banking_.enums.*;
 import com.home_banking_.exceptions.BusinessException;
+import com.home_banking_.exceptions.IdempotencyConflictException;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.mappers.TransactionMapper;
 import com.home_banking_.model.Account;
+import com.home_banking_.model.IdempotencyRecord;
 import com.home_banking_.model.Transaction;
 import com.home_banking_.repository.AccountRepository;
 import com.home_banking_.repository.TransactionRepository;
 import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.AuditLogService;
 import com.home_banking_.service.TransactionService;
+import com.home_banking_.service.idempotency.IdempotencyService;
+import com.home_banking_.service.idempotency.IdempotencyValidationResult;
 import com.home_banking_.service.security.CurrentUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -37,34 +39,80 @@ public class TransactionServiceImpl implements TransactionService {
     private final UsersRepository usersRepository;
     private final CurrentUserService currentUserService;
     private final AuditLogService auditLogService;
+    private final IdempotencyService idempotencyService;
+    private final ObjectMapper objectMapper;
 
-    public TransactionServiceImpl(AccountRepository accountRepository, TransactionRepository transactionRepository, TransactionMapper transactionMapper, UsersRepository usersRepository, CurrentUserService currentUserService, AuditLogService auditLogService) {
+    public TransactionServiceImpl(AccountRepository accountRepository, TransactionRepository transactionRepository, TransactionMapper transactionMapper, UsersRepository usersRepository, CurrentUserService currentUserService, AuditLogService auditLogService, IdempotencyService idempotencyService, ObjectMapper objectMapper) {
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;
         this.transactionMapper = transactionMapper;
         this.usersRepository = usersRepository;
         this.currentUserService = currentUserService;
         this.auditLogService = auditLogService;
+        this.idempotencyService = idempotencyService;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
     @Override
-    public TransactionResponseDto makeTransfer(TransactionRequestDto dto) {
+    public TransactionResponseDto makeTransfer(String idempotencyKey, TransactionRequestDto dto) {
         String email = currentUserService.getCurrentUserEmail();
         Long userId = currentUserService.getCurrentUserId();
 
+        IdempotencyValidationResult validationResult = idempotencyService.validateAndRegister(
+                idempotencyKey,
+                userId,
+                IdempotencyOperation.TRANSFER,
+                dto
+        );
+
+        if (validationResult.isReplay()) {
+            log.info("[TRANSFER_IDEMPOTENT_REPLAY] userEmail={} idempotencyKey={}", email, idempotencyKey);
+            return replayResponse(validationResult.getRecord());
+        }
+
+        if (validationResult.isProcessing()){
+            log.warn("[TRANSFER_IDEMPOTENT_PROCESSING] userEmail={} idempotencyKey={}", email, idempotencyKey);
+            throw new IdempotencyConflictException("This transfer request is already being processed");
+        }
+
+        IdempotencyRecord record = validationResult.getRecord();
+
+        try {
+            TransactionResponseDto response = executeTransfer(dto, email,userId);
+
+            String responseBody = serializeResponse(response);
+
+            idempotencyService.markAsCompleted(
+                    record.getId(),
+                    200,
+                    responseBody,
+                    response.getId()
+            );
+
+            return response;
+        }catch (Exception ex) {
+            String errorMessage = ex.getMessage() != null ? ex.getMessage() : "Unexpected error during transfer";
+            idempotencyService.markAsFailed(record.getId(), errorMessage);
+            throw ex;
+        }
+    }
+
+
+    private TransactionResponseDto executeTransfer(TransactionRequestDto dto, String email, Long userId) {
         log.info("[TRANSFER_INIT] userEmail={} originAccountId={} destinationAccountId={} amount={}",
                 email, dto.getOriginAccountId(), dto.getDestinationAccountId(), dto.getAmount());
 
         if (dto.getOriginAccountId().equals(dto.getDestinationAccountId())) {
-            log.warn("[TRANSFER_REJECTED] Transfer between identical account is not allowed. UserEmail={} accountId={}",
+            log.warn("[TRANSFER_REJECTED] Transfer between identical account is not allowed. userEmail={} accountId={}",
                     email, dto.getOriginAccountId());
 
             auditLogService.registerEvent(
                     userId,
                     "Transfer rejected: origin and destination accounts are the same. accountId=" + dto.getOriginAccountId(),
                     "TRANSFER_REJECTED",
-                    "SECURITY");
+                    "SECURITY"
+            );
 
             throw new BusinessException("Origin and destination accounts must be different");
         }
@@ -73,18 +121,18 @@ public class TransactionServiceImpl implements TransactionService {
         validateAmount(amount);
 
         Account origin = accountRepository.findByIdAndUsersEmailForUpdate(dto.getOriginAccountId(), email)
-                .orElseThrow(()-> {
+                .orElseThrow(() -> {
                     log.warn("[TRANSFER_REJECTED] Origin account not found or access denied. userEmail={} originAccountId={}",
-                            email,dto.getOriginAccountId());
+                            email, dto.getOriginAccountId());
                     return new ResourceNotFoundException("Origin account not found");
                 });
 
         Account destination = accountRepository.findByIdForUpdate(dto.getDestinationAccountId())
-                        .orElseThrow(()-> {
-                            log.warn("[TRANSFER_REJECTED] Destination account not found. destinationAccountId={}",
-                                    dto.getDestinationAccountId());
-                            return new ResourceNotFoundException("Destination account not found");
-                        });
+                .orElseThrow(() -> {
+                    log.warn("[TRANSFER_REJECTED] Destination account not found. destinationAccountId={}",
+                            dto.getDestinationAccountId());
+                    return new ResourceNotFoundException("Destination account not found");
+                });
 
         validateAccountActive(origin, "Origin", "TRANSFER", userId);
         validateAccountActive(destination, "Destination", "TRANSFER", userId);
@@ -97,10 +145,11 @@ public class TransactionServiceImpl implements TransactionService {
                     userId,
                     "Transfer rejected due to insufficient balance. originAccountId=" + origin.getId()
                             + ", destinationAccountId=" + destination.getId()
-                            + ", amount= " + amount,
+                            + ", amount=" + amount,
                     "TRANSFER_REJECTED",
                     "SECURITY"
             );
+
             throw new BusinessException("Insufficient balance for transfer");
         }
 
@@ -108,22 +157,22 @@ public class TransactionServiceImpl implements TransactionService {
         destination.setBalance(destination.getBalance().add(amount));
 
         Transaction tx = buildTransferTransaction(origin, destination, amount);
-        transactionRepository.save(tx);
+        Transaction savedTx = transactionRepository.save(tx);
 
         auditLogService.registerEvent(
                 userId,
-                "Transfer completed successfully. transactionId=" + tx.getId()
-                + ", originAccountId=" + origin.getId()
-                + ", destinationAccountId=" + destination.getId()
-                + ", amount=" + amount,
+                "Transfer completed successfully. transactionId=" + savedTx.getId()
+                        + ", originAccountId=" + origin.getId()
+                        + ", destinationAccountId=" + destination.getId()
+                        + ", amount=" + amount,
                 "TRANSFER_COMPLETED",
                 "TRANSACTION"
         );
 
         log.info("[TRANSFER_SUCCESS] transactionId={} originAccountId={} destinationAccountId={} amount={}",
-                tx.getId(), origin.getId(), destination.getId(), amount);
+                savedTx.getId(), origin.getId(), destination.getId(), amount);
 
-        return transactionMapper.toDto(tx);
+        return transactionMapper.toDto(savedTx);
     }
 
 
@@ -433,5 +482,21 @@ public class TransactionServiceImpl implements TransactionService {
 
     private void applyCreditToAccount(Account account, BigDecimal amount) {
         account.setBalance(account.getBalance().add(amount));
+    }
+
+    private String serializeResponse(TransactionResponseDto response) {
+        try {
+            return objectMapper.writeValueAsString(response);
+        }catch (Exception e) {
+            throw new BusinessException("Error serializing transaction response");
+        }
+    }
+
+    private TransactionResponseDto replayResponse(IdempotencyRecord record) {
+        try {
+            return objectMapper.readValue(record.getResponseBody(), TransactionResponseDto.class);
+        } catch (Exception e) {
+            throw new BusinessException("Error reconstructing idempotent response");
+        }
     }
 }

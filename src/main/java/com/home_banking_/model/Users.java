@@ -25,8 +25,8 @@ public class Users {
     private String email;
     @Column(nullable = false)
     private String password;
-    @Column(nullable = false, unique = true, length = 20)
-    private String DNI;
+    @Column(name = "dni", nullable = false, unique = true, length = 20)
+    private String dni;
     @Column(nullable = false)
     private LocalDateTime registrationDate;
 

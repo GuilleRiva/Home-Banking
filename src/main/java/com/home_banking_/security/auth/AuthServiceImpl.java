@@ -65,7 +65,7 @@ public class AuthServiceImpl implements AuthService{
         users.setSurname(request.getSurname().trim());
         users.setEmail(normalizedEmail);
         users.setPassword(passwordEncoder.encode(request.getPassword()));
-        users.setDNI(request.getDni().trim());
+        users.setDni(request.getDni().trim());
         users.setRegistrationDate(LocalDateTime.now());
         users.setRol(Rol.CLIENT);
         users.setUserStatus(UserStatus.PENDING_ACTIVATION);

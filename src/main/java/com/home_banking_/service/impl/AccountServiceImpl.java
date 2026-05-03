@@ -2,6 +2,7 @@ package com.home_banking_.service.impl;
 
 import com.home_banking_.dto.request.AccountCreateRequestDto;
 import com.home_banking_.dto.response.AccountResponseDto;
+import com.home_banking_.enums.Currency;
 import com.home_banking_.enums.StatusAccount;
 import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.exceptions.ResourceNotFoundException;
@@ -45,11 +46,13 @@ public class AccountServiceImpl implements AccountService {
     public AccountResponseDto createAccount(AccountCreateRequestDto dto) {
         String email = currentUserService.getCurrentUserEmail();
 
-        log.info("[ACCOUNT_CREATE_INIT] userEmil={} alias={} accountType={}",
+        log.info("[ACCOUNT_CREATE_INIT] userEmail={} alias={} accountType={}",
                 email, dto.getAlias(), dto.getTypeAccount());
 
-        Users users = usersRepository.findByEmail(email)
+        Users users = usersRepository.findByEmail(currentUserService.getCurrentUserEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        log.info("[ACCOUNT_CREATE_DEBUG] authenticatedUserId={} authenticatedEmail={}", users.getId(), users.getEmail());
 
         validateAlias(dto.getAlias());
         validateAccountCreationRules(users.getId(), dto);
@@ -59,24 +62,38 @@ public class AccountServiceImpl implements AccountService {
         account.setBalance(BigDecimal.ZERO);
         account.setCreationDate(LocalDateTime.now());
         account.setStatusAccount(StatusAccount.ACTIVE);
-        account.setAccountNumber(generateUniqueAccountNumber());
-        account.setCBU(generateUniqueCbu());
+        account.setCurrency(Currency.ARS);
+      /* LOG TEMPORAL**/
+        log.info("[ACCOUNT_CREATE_DEBUG] generating account number");
+      /*  account.setAccountNumber(generateUniqueAccountNumber());
+        /**LOG TEMPORAL**/
+        log.info("[ACCOUNT_CREATE_DEBUG] generating CBU");
+    /*    account.setCBU(generateUniqueCbu());*/
 
-        accountRepository.save(account);
+        log.info("[ACCOUNT_CREATE_DEBUG] beforeSave userIdInAccount={} alias={} typeAccount={} ",
+                account.getUsers() != null ? account.getUsers().getId() : null,
+                account.getAlias(),
+                account.getTypeAccount());
 
-        auditLogService.registerEvent(
+        Account savedAccount=accountRepository.save(account);
+
+        log.info("[ACCOUNT_CREATE_DEBUG] afterSave accountId={} userIdInAccount={}",
+                savedAccount.getId(),
+                savedAccount.getUsers() != null ? savedAccount.getUsers().getId() : null);
+
+      /*  auditLogService.registerEvent(
                 users.getId(),
-                "Account created successfully. accountId=" + account.getId()
-                + ", alias=" + account.getAlias()
-                + ", accountType=" + account.getTypeAccount(),
+                "Account created successfully. accountId=" + savedAccount.getId()
+                        + ", alias=" + savedAccount.getAlias()
+                        + ", accountType=" + savedAccount.getTypeAccount(),
                 "CREATE_ACCOUNT",
                 "BANKING"
-        );
+        );*/
 
         log.info("[ACCOUNT_CREATE_SUCCESS] userEmail={} accountId={} alias={} accountType={}",
-                email, account.getId(), account.getAlias(), account.getTypeAccount());
+                email, savedAccount.getId(), savedAccount.getAlias(), savedAccount.getTypeAccount());
 
-        return accountMapper.toDto(account);
+        return accountMapper.toDto(savedAccount);
     }
 
     @Override

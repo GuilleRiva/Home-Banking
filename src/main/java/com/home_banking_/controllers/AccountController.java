@@ -53,7 +53,6 @@ public class AccountController {
     }
 
 
-
     @Operation(
             summary = "Get account by ID",
             description = "Get account information by ID"
@@ -77,8 +76,6 @@ public class AccountController {
         return ResponseEntity.ok(account);
 
     }
-
-
 
 
     @Operation(
@@ -105,7 +102,6 @@ public class AccountController {
     }
 
 
-
     @Operation(
             summary = "create a new account",
             description = "Creates and returns a new bank account associated with a user."
@@ -118,15 +114,14 @@ public class AccountController {
     })
     @PostMapping
     public ResponseEntity<AccountResponseDto>createAccount(@RequestBody @Valid AccountCreateRequestDto dto){
-        log.info("POST /api/accounts - Creating account for user ID: {}", createAccount(dto));
+        log.info("POST /api/accounts - Creating account with alias={} and accountType={}",
+                dto.getAlias(), dto.getTypeAccount());
 
         AccountResponseDto created = accountService.createAccount(dto);
         log.info("Account created successfully. ID: {}", created.getId());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
-
     }
-
 
 
     @Operation(
@@ -151,8 +146,6 @@ public class AccountController {
 
         return ResponseEntity.ok(account);
     }
-
-
 
 
     @Operation(

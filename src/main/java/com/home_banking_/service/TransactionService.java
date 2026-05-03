@@ -7,9 +7,8 @@ import java.util.List;
 
 public interface TransactionService {
 
-    TransactionResponseDto makeTransfer (TransactionRequestDto dto);
+    TransactionResponseDto makeTransfer (String idempotencyKey, TransactionRequestDto dto);
 
-  /*  TransactionResponseDto makeDeposit (DepositRequestDto dto);*/
 
     TransactionResponseDto makeWithdraw(WithDrawRequestDto dto);
 

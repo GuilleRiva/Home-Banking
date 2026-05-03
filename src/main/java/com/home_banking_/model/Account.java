@@ -34,8 +34,8 @@ public class Account {
     @Enumerated(EnumType.STRING)
     private Currency currency;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
     private Users users;
 
     @OneToMany(mappedBy = "accountOrigin")
