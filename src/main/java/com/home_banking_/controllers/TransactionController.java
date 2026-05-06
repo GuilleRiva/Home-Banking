@@ -120,9 +120,21 @@ public class TransactionController {
     @PostMapping("/admin-credit")
     @PreAuthorize("hasAnyRole('ADMIN')")
     public ResponseEntity<TransactionResponseDto> makeAdministrativeCredit(
+            @RequestHeader("Idempotency-key") String idempotencyKey,
             @Valid @RequestBody AdministrativeCreditRequestDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(transactionService.makeAdministrativeCredit(dto));
+                .body(transactionService.makeAdministrativeCredit(idempotencyKey, dto));
+    }
+
+
+    @PostMapping("/withdraw")
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN', 'EMPLOYED')")
+    public ResponseEntity<TransactionResponseDto> makeWithdraw(
+            @RequestHeader("Idempotency-key") String idempotencyKey,
+            @Valid @RequestBody WithDrawRequestDto dto
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(transactionService.makeWithdraw(idempotencyKey, dto));
     }
 
     //-----------------------------

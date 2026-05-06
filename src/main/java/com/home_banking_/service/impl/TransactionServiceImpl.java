@@ -178,20 +178,60 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Transactional
     @Override
-    public TransactionResponseDto makeWithdraw(WithDrawRequestDto dto) {
+    public TransactionResponseDto makeWithdraw(String idempotencyKey, WithDrawRequestDto dto) {
         String email = currentUserService.getCurrentUserEmail();
         Long userId = currentUserService.getCurrentUserId();
+
+        IdempotencyValidationResult validationResult = idempotencyService.validateAndRegister(
+                idempotencyKey,
+                userId,
+                IdempotencyOperation.WITHDRAW,
+                dto
+        );
+
+        if (validationResult.isReplay()) {
+            log.info("[MAKE_WITHDRAW_IDEMPOTENT_REPLAY] userEmail={} idempotencyKey={}", email, idempotencyKey);
+            return replayResponse(validationResult.getRecord());
+        }
+
+        if (validationResult.isProcessing()) {
+            log.warn("[MAKE_WITHDRAW_IDEMPOTENT_PROCESSING] userEmail={} idempotencyKey={}", email, idempotencyKey);
+            throw new IdempotencyConflictException("This withdraw request is already being processed");
+        }
+
+        IdempotencyRecord record = validationResult.getRecord();
+
+        try {
+            TransactionResponseDto response = executeWithdraw(dto, email, userId);
+            String responseBody = serializeResponse(response);
+
+            idempotencyService.markAsCompleted(
+                    record.getId(),
+                    201,
+                    responseBody,
+                    response.getId()
+            );
+            return response;
+        } catch (Exception ex) {
+            String errorMessage = ex.getMessage() != null ? ex.getMessage() : "Unexpected error during make withdraw ";
+            idempotencyService.markAsFailed(record.getId(), errorMessage);
+            throw ex;
+        }
+
+    }
+
+    private TransactionResponseDto executeWithdraw(WithDrawRequestDto dto, String email, Long userId){
         log.info("[WITHDRAW_INIT] userEmail={} accountId={} amount={}", email, dto.getAccountId(), dto.getAmount());
 
         BigDecimal amount = dto.getAmount();
         validateAmount(amount);
 
         Account account = accountRepository.findByIdAndUsersEmailForUpdate(dto.getAccountId(), email)
-                        .orElseThrow(()-> {
-                            log.warn("[WITHDRAW_REJECTED] Account not found or access denied. userEmail={} accountId={}",
-                                    email,dto.getAccountId());
-                            return new ResourceNotFoundException("Account not found");
-                        });
+                .orElseThrow(()-> {
+                    log.warn("[WITHDRAW_REJECTED] Account not found or access denied. userEmail={} accountId={}",
+                            email,dto.getAccountId());
+                    return new ResourceNotFoundException("Account not found");
+                });
 
         validateAccountActive(account, "Account", "WITHDRAW", userId);
 
@@ -211,23 +251,25 @@ public class TransactionServiceImpl implements TransactionService {
         }
 
         account.setBalance(account.getBalance().subtract(amount));
+        accountRepository.save(account);
 
         Transaction tx = buildWithdrawTransaction(account,amount);
-        transactionRepository.save(tx);
+        Transaction savedTx = transactionRepository.save(tx);
 
         auditLogService.registerEvent(
                 userId,
-                "Withdraw completed successfully. transactionId=" + tx.getId()
-                + ", accountId=" + account.getId()
-                + ", amount=" + amount,
+                "Withdraw completed successfully. transactionId=" + savedTx.getId()
+                        + ", accountId=" + account.getId()
+                        + ", amount=" + amount,
                 "WITHDRAW_COMPLETED",
                 "TRANSACTION"
         );
 
         log.info("[WITHDRAW_SUCCESS] transactionId={} accountId={} amount={} newBalance={}",
-                tx.getId(), account.getId(), amount, account.getBalance());
+                savedTx.getId(), account.getId(), amount, account.getBalance());
 
-        return transactionMapper.toDto(tx);
+        return transactionMapper.toDto(savedTx);
+
     }
 
 
@@ -265,7 +307,7 @@ public class TransactionServiceImpl implements TransactionService {
                     record.getId(),
                     201,
                     responseBody,
-                    record.getId()
+                    response.getId()
             );
             return response;
         } catch (Exception ex) {
@@ -310,14 +352,55 @@ public class TransactionServiceImpl implements TransactionService {
     @Transactional
     @PreAuthorize("hasAnyRole('ADMIN','EMPLOYED')")
     @Override
-    public TransactionResponseDto makeAdministrativeCredit(AdministrativeCreditRequestDto dto) {
-        Long adminUserId= currentUserService.getCurrentUserId();
+    public TransactionResponseDto makeAdministrativeCredit(String idempotencyKey, AdministrativeCreditRequestDto dto) {
+        String email = currentUserService.getCurrentUserEmail();
+        Long userId= currentUserService.getCurrentUserId();
 
-        log.info("[ADMIN_CREDIT_INIT] accountId={} amount={} reason={}",
-                dto.getAccountId(), dto.getAmount(), dto.getReason());
+        IdempotencyValidationResult validationResult = idempotencyService.validateAndRegister(
+                idempotencyKey,
+                userId,
+                IdempotencyOperation.LOAN_GRANT,
+                dto
+        );
+
+        if (validationResult.isReplay()) {
+            log.info("[ADMINISTRATIVE_CREDIT_IDEMPOTENT_REPLAY] userEmail={} idempotencyKey={}", email, idempotencyKey);
+            return replayResponse(validationResult.getRecord());
+        }
+
+        if (validationResult.isProcessing()) {
+            log.warn("[ADMINISTRATIVE_CREDIT_IDEMPOTENT_PROCESSING] userEmail={} idempotencyKey={}", email, idempotencyKey);
+            throw new IdempotencyConflictException("This administrative credit request is already being processed");
+        }
+
+        IdempotencyRecord record= validationResult.getRecord();
+
+        try {
+            TransactionResponseDto response = executeAdministrativeCredit(dto, email, userId);
+
+            String responseBody = serializeResponse(response);
+
+            idempotencyService.markAsCompleted(
+                    record.getId(),
+                    201,
+                    responseBody,
+                    response.getId()
+            );
+            return response;
+        } catch (Exception ex) {
+            String errorMessage = ex.getMessage() != null ? ex.getMessage() : "Unexpected error during administrative credit ";
+            idempotencyService.markAsFailed(record.getId(), errorMessage);
+            throw ex;
+        }
+
+    }
+
+    private TransactionResponseDto executeAdministrativeCredit(AdministrativeCreditRequestDto dto, String email, Long userId) {
+        log.info("[ADMIN_CREDIT_INIT] userEmail={} accountId={} amount={} reason={}",
+                email, dto.getAccountId(), dto.getAmount(), dto.getReason());
 
         Account account = getAccountForUpdate(dto.getAccountId());
-        validateAccountActive(account, "Account", "ADMIN_CREDIT", dto.getAccountId());
+        validateAccountActive(account, "Account", "ADMIN_CREDIT", userId);
         validateAmount(dto.getAmount());
         validateReason(dto.getReason());
 
@@ -328,17 +411,17 @@ public class TransactionServiceImpl implements TransactionService {
         accountRepository.save(account);
 
         auditLogService.registerEvent(
-                adminUserId,
+                userId,
                 "Administrative credit completed. transactionId=" + savedTransaction.getId()
-                + ", targetAccountId=" + account.getId()
-                + ", amount=" + dto.getAmount()
-                + ", reason=" + dto.getReason(),
+                        + ", targetAccountId=" + account.getId()
+                        + ", amount=" + dto.getAmount()
+                        + ", reason=" + dto.getReason(),
                 "ADMIN_CREDIT_COMPLETED",
-                "AUDIT"
+                "TRANSACTION"
         );
 
-        log.info("[ADMIN_CREDIT_SUCCESS] accountId={} transactionId={} amount={}",
-                account.getId(), savedTransaction.getId(), savedTransaction.getAmount());
+        log.info("[ADMIN_CREDIT_SUCCESS] userEmail={}  accountId={} transactionId={} amount={}",
+                 email ,account.getId(), savedTransaction.getId(), savedTransaction.getAmount());
 
         return transactionMapper.toDto(savedTransaction);
     }
@@ -404,7 +487,7 @@ public class TransactionServiceImpl implements TransactionService {
                 requestUserId,
                 "Transaction history requested for userId=" + userId,
                 "USER_TRANSACTIONS_VIEWED",
-                "AUDIT"
+                "TRANSACTION"
         );
 
         log.info("[FETCH_USER_TRANSACTIONS_SUCCESS] requesterEmail={} requestedUserId={} transactionSize={}",
@@ -485,6 +568,7 @@ public class TransactionServiceImpl implements TransactionService {
         tx.setCreationDate(LocalDateTime.now());
         tx.setStatusTransaction(StatusTransaction.COMPLETED);
         tx.setTypeTransaction(TransactionOperationType.WITHDRAW);
+        tx.setMovementAccountType(MovementAccountType.CUENTA_PROPIA);
         return tx;
     }
 
@@ -497,6 +581,7 @@ public class TransactionServiceImpl implements TransactionService {
         transaction.setTypeTransaction(TransactionOperationType.ADMIN_CREDIT);
         transaction.setStatusTransaction(StatusTransaction.COMPLETED);
         transaction.setDescription(dto.getDescription() + " | Reason: " + dto.getReason());
+        transaction.setMovementAccountType(MovementAccountType.CREDITO);
 
         return transaction;
     }
