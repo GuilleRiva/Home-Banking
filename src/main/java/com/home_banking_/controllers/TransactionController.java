@@ -96,11 +96,12 @@ public class TransactionController {
 
     })
     @PostMapping("/customer-deposit")
-    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN' , 'EMPLOYED'")
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN' , 'EMPLOYED')")
     public ResponseEntity<TransactionResponseDto> makeCustomerDeposit(
+            @RequestHeader("Idempotency-key") String idempotencyKey,
             @Valid @RequestBody CustomerDepositRequestDto dto){
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(transactionService.makeCustomerDeposit(dto));
+                .body(transactionService.makeCustomerDeposit(idempotencyKey, dto));
     }
 
     @Operation(

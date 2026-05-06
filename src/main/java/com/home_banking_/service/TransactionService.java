@@ -12,7 +12,7 @@ public interface TransactionService {
 
     TransactionResponseDto makeWithdraw(WithDrawRequestDto dto);
 
-    TransactionResponseDto makeCustomerDeposit(CustomerDepositRequestDto dto);
+    TransactionResponseDto makeCustomerDeposit(String idempotencyKey, CustomerDepositRequestDto dto);
 
     TransactionResponseDto makeAdministrativeCredit(AdministrativeCreditRequestDto dto);
 

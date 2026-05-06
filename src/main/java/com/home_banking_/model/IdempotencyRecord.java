@@ -50,6 +50,7 @@ public class IdempotencyRecord {
     @Column(name = "response_status_code")
     private Integer responseStatusCode;
 
+    @Column(name = "resource_id")
     private Long resourceId;
 
     @Column(name = "error_message", length = 500)

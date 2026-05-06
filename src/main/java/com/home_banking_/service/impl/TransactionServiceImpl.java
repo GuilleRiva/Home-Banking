@@ -230,16 +230,59 @@ public class TransactionServiceImpl implements TransactionService {
         return transactionMapper.toDto(tx);
     }
 
+
     @Transactional
     @Override
-    public TransactionResponseDto makeCustomerDeposit(CustomerDepositRequestDto dto) {
+    public TransactionResponseDto makeCustomerDeposit(String idempotencyKey, CustomerDepositRequestDto dto) {
         String email = currentUserService.getCurrentUserEmail();
+        Long userId= currentUserService.getCurrentUserId();
 
+        IdempotencyValidationResult validationResult = idempotencyService.validateAndRegister(
+                idempotencyKey,
+                userId,
+                IdempotencyOperation.DEPOSIT,
+                dto
+        );
+
+        if (validationResult.isReplay()) {
+            log.info("[CUSTOMER_DEPOSIT_IDEMPOTENT_REPLAY] userEmail={} idempotency={}", email, idempotencyKey);
+            return replayResponse(validationResult.getRecord());
+        }
+
+        if (validationResult.isProcessing()) {
+            log.warn("[CUSTOMER_DEPOSIT_IDEMPOTENT_PROCESSING] userEmail={} idempotencyKey={}", email, idempotencyKey);
+            throw new IdempotencyConflictException("This deposit request is already being processed");
+        }
+
+        IdempotencyRecord record= validationResult.getRecord();
+
+        try {
+            TransactionResponseDto response = executeCustomerDeposit(dto, email, userId);
+
+            String responseBody = serializeResponse(response);
+
+            idempotencyService.markAsCompleted(
+                    record.getId(),
+                    201,
+                    responseBody,
+                    record.getId()
+            );
+            return response;
+        } catch (Exception ex) {
+            String errorMessage = ex.getMessage() != null ? ex.getMessage() : "Unexpected error during customer deposit ";
+            idempotencyService.markAsFailed(record.getId(), errorMessage);
+            throw ex;
+        }
+
+    }
+
+
+    private TransactionResponseDto executeCustomerDeposit (CustomerDepositRequestDto dto, String email, Long userId) {
         log.info("[CUSTOMER_DEPOSIT_INIT] userEmail={} accountId={} amount={}",
                 email, dto.getAccountId(), dto.getAmount());
 
-        Account account = getOwnedAccountForUpdate(dto.getAccountId(),email);
-        validateAccountActive(account, "Account", "CUSTOMER_DEPOSIT", account.getId());
+        Account account = getOwnedAccountForUpdate(dto.getAccountId(), email);
+        validateAccountActive(account, "Account", "CUSTOMER_DEPOSIT", userId);
         validateAmount(dto.getAmount());
 
         applyCreditToAccount(account, dto.getAmount());
@@ -258,10 +301,11 @@ public class TransactionServiceImpl implements TransactionService {
         );
 
         log.info("[CUSTOMER_DEPOSIT_SUCCESS] userEmail={} accountId={} transactionId={} amount={}",
-                email, account.getId(), savedTransaction.getId(), savedTransaction.getAmount());
+                email, account.getId(), savedTransaction.getId(),savedTransaction.getAmount());
 
         return transactionMapper.toDto(savedTransaction);
     }
+
 
     @Transactional
     @PreAuthorize("hasAnyRole('ADMIN','EMPLOYED')")
@@ -420,6 +464,7 @@ public class TransactionServiceImpl implements TransactionService {
         tx.setCreationDate(LocalDateTime.now());
         tx.setStatusTransaction(StatusTransaction.COMPLETED);
         tx.setTypeTransaction(TransactionOperationType.TRANSFER);
+        tx.setMovementAccountType(MovementAccountType.CUENTA_PROPIA);
         return tx;
     }
 
