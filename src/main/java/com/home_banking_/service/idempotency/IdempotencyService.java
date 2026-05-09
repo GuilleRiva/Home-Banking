@@ -14,4 +14,5 @@ public interface IdempotencyService {
     void markAsCompleted(Long recordId, int responseStatusCode, String responseBody, Long resourceId);
 
     void markAsFailed(Long recordId, String errorMessage);
+
 }

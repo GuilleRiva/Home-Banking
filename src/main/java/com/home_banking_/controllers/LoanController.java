@@ -66,14 +66,26 @@ public class LoanController {
     })
     @PostMapping("/grant")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<LoanResponseDto> grantLoan(@RequestBody @Valid LoanGrantRequestDto dto){
+    public ResponseEntity<LoanResponseDto> grantLoan(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @Valid @RequestBody LoanGrantRequestDto dto){
 
-        LoanResponseDto granted = loanService.grantLoan(dto);
+        LoanResponseDto granted = loanService.grantLoan(idempotencyKey, dto);
 
         log.info("Loan successfully granted for ID account: {}", dto.getAccountId());
         return new ResponseEntity<>(granted, HttpStatus.CREATED);
     }
 
+
+    @PostMapping("/request")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<LoanResponseDto> requestLoan(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @Valid @RequestBody LoanGrantRequestDto dto
+    ) {
+        LoanResponseDto response = loanService.requestLoan(idempotencyKey,dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
 
 
     @Operation(

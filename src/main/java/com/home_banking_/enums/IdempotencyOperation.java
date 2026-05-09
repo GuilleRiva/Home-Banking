@@ -5,5 +5,6 @@ public enum IdempotencyOperation {
     PAYMENT,
     DEPOSIT,
     WITHDRAW,
-    LOAN_GRANT
+    LOAN_GRANT,
+    REQUEST_LOAN
 }

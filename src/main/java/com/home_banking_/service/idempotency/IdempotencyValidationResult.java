@@ -22,6 +22,7 @@ public class IdempotencyValidationResult {
                 .build();
     }
 
+
     public static IdempotencyValidationResult replay(IdempotencyRecord record) {
         return IdempotencyValidationResult.builder()
                 .replay(true)
