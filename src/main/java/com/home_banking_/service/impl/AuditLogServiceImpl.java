@@ -96,7 +96,7 @@ public class AuditLogServiceImpl implements AuditLogService {
     }
 
     @Override
-    public void registerPaymentEvent(Long userId, String description, AuditType auditType, PaymentAuditAction paymentAction) {
-        registerEvent(userId, description, auditType.name(), paymentAction.name());
+    public void registerPaymentEvent(Long userId, String description,  PaymentAuditAction paymentAction, AuditType auditType) {
+        registerEvent(userId, description,paymentAction.name(), auditType.name());
     }
 }

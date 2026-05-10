@@ -95,12 +95,14 @@ public class PaymentController {
             @ApiResponse(responseCode = "400", description = "Invalid payment request")
     })
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
-    public ResponseEntity<PaymentResponseDto> makePayment(@Valid @RequestBody PaymentRequestDto dto){
+    @PreAuthorize("hasAnyRole('CLIENT')")
+    public ResponseEntity<PaymentResponseDto> makePayment(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @Valid @RequestBody PaymentRequestDto dto){
         log.info("POST /api/payments - Processing payment for account ID: {}, entity: {}",
                 dto.getAccountId(), dto.getServiceEntity());
 
-        PaymentResponseDto payment = paymentService.makePayment(dto);
+        PaymentResponseDto payment = paymentService.makePayment(idempotencyKey, dto);
         log.info("Payment successfully made. Payment ID: {}", payment.getId());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(payment);

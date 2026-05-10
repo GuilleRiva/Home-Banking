@@ -19,6 +19,7 @@ public class Payment {
     private LocalDateTime paymentDate;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 40)
     private ServiceEntity serviceEntity;
 
     @Enumerated(EnumType.STRING)

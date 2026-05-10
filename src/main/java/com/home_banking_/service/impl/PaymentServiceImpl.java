@@ -1,5 +1,7 @@
 package com.home_banking_.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.home_banking_.dto.request.PaymentRequestDto;
 import com.home_banking_.dto.response.PaymentResponseDto;
 import com.home_banking_.enums.*;
@@ -12,8 +14,11 @@ import com.home_banking_.repository.AccountRepository;
 import com.home_banking_.repository.PaymentRepository;
 import com.home_banking_.service.AuditLogService;
 import com.home_banking_.service.PaymentService;
+import com.home_banking_.service.idempotency.IdempotencyService;
+import com.home_banking_.service.idempotency.IdempotencyValidationResult;
 import com.home_banking_.service.security.CurrentUserService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,18 +37,63 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentMapper paymentMapper;
     private final CurrentUserService currentUserService;
     private final AuditLogService auditLogService;
+    private final IdempotencyService idempotencyService;
+    private final ObjectMapper objectMapper;
 
-    public PaymentServiceImpl(PaymentRepository paymentRepository, AccountRepository accountRepository, PaymentMapper paymentMapper, CurrentUserService currentUserService, AuditLogService auditLogService) {
+    public PaymentServiceImpl(PaymentRepository paymentRepository, AccountRepository accountRepository, PaymentMapper paymentMapper, CurrentUserService currentUserService, AuditLogService auditLogService, IdempotencyService idempotencyService, ObjectMapper objectMapper) {
         this.paymentRepository = paymentRepository;
         this.accountRepository = accountRepository;
         this.paymentMapper = paymentMapper;
         this.currentUserService = currentUserService;
         this.auditLogService = auditLogService;
+        this.idempotencyService = idempotencyService;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
     @Override
-    public PaymentResponseDto makePayment(PaymentRequestDto dto) {
+    public PaymentResponseDto makePayment(String idempotencyKey, PaymentRequestDto dto) {
+        Long userId = currentUserService.getCurrentUserId();
+
+        log.info("[PAYMENT_IDEMPOTENCY_INIT] userId={} accountId={} amount={}",
+                userId, dto.getAccountId(), dto.getAmount());
+
+        IdempotencyValidationResult result = idempotencyService.validateAndRegister(
+                idempotencyKey,
+                userId,
+                IdempotencyOperation.PAYMENT,
+                dto
+        );
+
+        if (result.isReplay()) {
+            log.info("[PAYMENT_IDEMPOTENCY_REPLAY] userId={} recordId={}",
+                    userId,result.getRecord().getId());
+
+            return deserializePaymentResponse(result.getRecord().getResponseBody());
+        }
+        if (result.isProcessing()) {
+            log.warn("[PAYMENT_IDEMPOTENCY_PROCESSING] userId={} recordId={}",
+                    userId, result.getRecord().getId());
+
+            throw new BusinessException("This payment is currently being processed");
+        }
+
+        PaymentResponseDto response = executePayment(dto);
+
+        idempotencyService.markAsCompleted(
+                result.getRecord().getId(),
+                HttpStatus.CREATED.value(),
+                serializePaymentResponse(response),
+                response.getId()
+        );
+
+        log.info("[PAYMENT_IDEMPOTENCY_COMPLETED] userId={} paymentId={} recordId={}",
+                userId, response.getId(), result.getRecord().getId());
+
+        return response;
+    }
+
+    private PaymentResponseDto executePayment(PaymentRequestDto dto) {
         String email = currentUserService.getCurrentUserEmail();
 
         log.info("[PAYMENT_INIT] userEmail={} accountId={} amount={}",
@@ -67,17 +117,19 @@ public class PaymentServiceImpl implements PaymentService {
         Payment savedPayment = paymentRepository.save(payment);
         accountRepository.save(account);
 
-       log.info("[PAYMENT_SUCCESS] userEmail={} accountId={} paymentId={} amount={}",
-               email, account.getId(),savedPayment.getId(), savedPayment.getAmount());
+        log.info("[PAYMENT_SUCCESS] userEmail={} accountId={} paymentId={} amount={}",
+                email, account.getId(),savedPayment.getId(), savedPayment.getAmount());
 
-       auditLogService.registerPaymentEvent(
-               account.getUsers().getId(),
-               "Payment completed. accountId=" + account.getId() + ", amount=" + dto.getAmount(),
-               AuditType.TRANSACTION,
-               PaymentAuditAction.PAYMENT_COMPLETED
-       );
+        auditLogService.registerPaymentEvent(
+                        account.getUsers().getId(),
+                        "Payment completed. accountId=" + account.getId() + ", amount=" + dto.getAmount(),
+
+                PaymentAuditAction.PAYMENT_COMPLETED,
+                AuditType.TRANSACTION
+                );
 
         return paymentMapper.toDto(savedPayment);
+
     }
 
     @Transactional(readOnly = true)
@@ -123,8 +175,8 @@ public class PaymentServiceImpl implements PaymentService {
             auditLogService.registerPaymentEvent(
                     account.getUsers().getId(),
                     "Rejected payment. accountId=" + account.getId() + ", reason=Inactive account",
-                    AuditType.TRANSACTION,
-                    PaymentAuditAction.PAYMENT_REJECTED_INACTIVE_ACCOUNT
+                    PaymentAuditAction.PAYMENT_REJECTED_INACTIVE_ACCOUNT,
+                    AuditType.TRANSACTION
             );
             throw new BusinessException("The account is not active");
         }
@@ -149,10 +201,31 @@ public class PaymentServiceImpl implements PaymentService {
             auditLogService.registerPaymentEvent(
                     account.getUsers().getId(),
                     "Rejected payment. accountId=" + account.getId() + ", amount=" + amount + ", reason=Insufficient balance",
-                    AuditType.TRANSACTION,
-                    PaymentAuditAction.PAYMENT_REJECTED_INSUFFICIENT_BALANCE
+                    PaymentAuditAction.PAYMENT_REJECTED_INSUFFICIENT_BALANCE,
+                    AuditType.TRANSACTION
             );
             throw new BusinessException("Insufficient balance to make the payment");
+        }
+    }
+
+    private PaymentResponseDto deserializePaymentResponse(String responseBody) {
+        try {
+            return objectMapper.readValue(responseBody, PaymentResponseDto.class);
+        } catch (JsonProcessingException e) {
+            log.error("[PAYMENT_IDEMPOTENCY_DESERIALIZATION_ERROR]", e);
+
+            throw new BusinessException("The payment could not be processed.");
+        }
+    }
+
+    private String serializePaymentResponse(PaymentResponseDto response) {
+        try {
+            return objectMapper.writeValueAsString(response);
+        }catch (JsonProcessingException e) {
+            log.error("[PAYMENT_IDEMPOTENCY_SERIALIZATION_ERROR] loanId={}",
+                    response.getId(), e);
+
+            throw new BusinessException("Could not serialize payment response");
         }
     }
 }

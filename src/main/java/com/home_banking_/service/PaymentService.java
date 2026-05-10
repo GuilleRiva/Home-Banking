@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface PaymentService {
 
-    PaymentResponseDto makePayment(PaymentRequestDto dto);
+    PaymentResponseDto makePayment(String idempotencyKey, PaymentRequestDto dto);
 
     List<PaymentResponseDto> getPaymentByAccount (Long accountId);
 

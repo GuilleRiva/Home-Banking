@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface AuditLogService {
 
-    void registerPaymentEvent(Long userId, String description, AuditType auditType, PaymentAuditAction paymentAction);
+    void registerPaymentEvent(Long userId, String description,PaymentAuditAction paymentAction, AuditType auditType);
 
     void registerEvent(Long userId, String message, String typeEvent, String type);
 
