@@ -3,6 +3,7 @@ package com.home_banking_.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.home_banking_.dto.request.PaymentRequestDto;
+import com.home_banking_.dto.request.ServicePaymentRequestDto;
 import com.home_banking_.dto.response.PaymentResponseDto;
 import com.home_banking_.enums.*;
 import com.home_banking_.exceptions.BusinessException;
@@ -93,16 +94,18 @@ public class PaymentServiceImpl implements PaymentService {
         return response;
     }
 
+
     private PaymentResponseDto executePayment(PaymentRequestDto dto) {
         String email = currentUserService.getCurrentUserEmail();
 
         log.info("[PAYMENT_INIT] userEmail={} accountId={} amount={}",
                 email, dto.getAccountId(), dto.getAmount());
 
-        Account account = getOwnedAccount(dto.getAccountId(), email);
+        validateAmount(dto.getAmount());
+
+        Account account = getOwnedAccountForUpdate(dto.getAccountId(), email);
 
         validateAccountActive(account);
-        validateAmount(dto.getAmount());
         validateSufficientBalance(account, dto.getAmount());
 
         account.setBalance(account.getBalance().subtract(dto.getAmount()));
@@ -131,6 +134,86 @@ public class PaymentServiceImpl implements PaymentService {
         return paymentMapper.toDto(savedPayment);
 
     }
+
+    @Transactional
+    @Override
+    public PaymentResponseDto payService(String idempotencyKey, ServicePaymentRequestDto dto) {
+        Long userId = currentUserService.getCurrentUserId();
+
+        log.info("[PAYMENT_SERVICE_IDEMPOTENCY_INIT] userId={} accountId={} amount={} serviceEntity={}",
+                userId, dto.getAccountId(), dto.getAmount(), dto.getServiceEntity());
+
+        IdempotencyValidationResult result = idempotencyService.validateAndRegister(
+                idempotencyKey,
+                userId,
+                IdempotencyOperation.PAYMENT_SERVICE,
+                dto
+        );
+
+        if (result.isReplay()) {
+            log.info("[PAYMENT_SERVICE_IDEMPOTENCY_REPLAY] userId={} recordId={}",
+                    userId,result.getRecord().getId());
+
+            return deserializePaymentResponse(result.getRecord().getResponseBody());
+        }
+        if (result.isProcessing()) {
+            log.warn("[PAYMENT_SERVICE_IDEMPOTENCY_PROCESSING] userId={} recordId={}",
+                    userId, result.getRecord().getId());
+
+            throw new BusinessException("This service payment is currently being processed");
+        }
+
+        PaymentResponseDto paymentResponseDto = executePayService(dto);
+
+        idempotencyService.markAsCompleted(
+                result.getRecord().getId(),
+                HttpStatus.CREATED.value(),
+                serializePaymentResponse(paymentResponseDto),
+                paymentResponseDto.getId()
+        );
+
+        log.info("[PAYMENT_SERVICE_IDEMPOTENCY_COMPLETED] userId={} paymentId={} recordId={}",
+                userId, paymentResponseDto.getId(), result.getRecord().getId());
+
+        return paymentResponseDto;
+    }
+
+    private PaymentResponseDto executePayService(ServicePaymentRequestDto dto) {
+        String email = currentUserService.getCurrentUserEmail();
+        Long userId = currentUserService.getCurrentUserId();
+
+        log.info("[PAYMENT_SERVICE_INIT] userEmail={} accountId={} amount={} serviceEntity={}",
+                email,dto.getAccountId(), dto.getAmount(), dto.getServiceEntity());
+
+        validateAmount(dto.getAmount());
+
+        Account account = getOwnedAccountForUpdate(dto.getAccountId(), email);
+
+        validateAccountActive(account);
+        validateSufficientBalance(account, dto.getAmount());
+
+        account.setBalance(account.getBalance().subtract(dto.getAmount()));
+
+        Payment payment = buildServicePayment(dto,account);
+
+        accountRepository.save(account);
+        Payment savedPayment = paymentRepository.save(payment);
+
+        log.info("[PAYMENT_SERVICE_SUCCESS] userEmail={} accountId={} paymentId={} amount={}, serviceEntity={}",
+                email, account.getId(),savedPayment.getId(), savedPayment.getAmount(), savedPayment.getServiceEntity());
+
+        auditLogService.registerPaymentEvent(
+                account.getUsers().getId(),
+                "Service payment completed. accountId=" + account.getId()
+                + ", serviceEntity=" + dto.getServiceEntity()
+                + ", amount=" + dto.getAmount(),
+                PaymentAuditAction.PAYMENT_COMPLETED,
+                AuditType.TRANSACTION
+        );
+
+        return paymentMapper.toDto(savedPayment);
+    }
+
 
     @Transactional(readOnly = true)
     @Override
@@ -227,5 +310,23 @@ public class PaymentServiceImpl implements PaymentService {
 
             throw new BusinessException("Could not serialize payment response");
         }
+    }
+
+    private Account getOwnedAccountForUpdate(Long accountId, String email) {
+        return accountRepository.findByIdAndUsersEmailForUpdate(accountId, email)
+                .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
+    }
+
+    private Payment buildServicePayment(ServicePaymentRequestDto dto, Account account) {
+        Payment payment = new Payment();
+
+        payment.setAccount(account);
+        payment.setAmount(dto.getAmount());
+        payment.setDescription(dto.getDescription());
+        payment.setServiceEntity(dto.getServiceEntity());
+        payment.setPaymentDate(LocalDateTime.now());
+        payment.setStatusPayment(StatusPayment.COMPLETED);
+
+        return payment;
     }
 }

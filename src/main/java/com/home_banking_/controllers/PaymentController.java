@@ -1,6 +1,7 @@
 package com.home_banking_.controllers;
 
 import com.home_banking_.dto.request.PaymentRequestDto;
+import com.home_banking_.dto.request.ServicePaymentRequestDto;
 import com.home_banking_.dto.response.PaymentResponseDto;
 import com.home_banking_.enums.ServiceEntity;
 import com.home_banking_.service.PaymentService;
@@ -104,6 +105,23 @@ public class PaymentController {
 
         PaymentResponseDto payment = paymentService.makePayment(idempotencyKey, dto);
         log.info("Payment successfully made. Payment ID: {}", payment.getId());
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(payment);
+    }
+
+
+    @PostMapping("/services")
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
+    public ResponseEntity<PaymentResponseDto> payService(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @Valid @RequestBody ServicePaymentRequestDto dto
+            ) {
+        log.info("[PAYMENT_SERVICE_REQUEST] accountId={} serviceEntity={}",
+                dto.getAccountId(), dto.getServiceEntity());
+
+        PaymentResponseDto payment = paymentService.payService(idempotencyKey, dto);
+        log.info("[PAYMENT_SERVICE_RESPONSE] paymentId={} accountId={}",
+                payment.getId(), dto.getAccountId());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(payment);
     }

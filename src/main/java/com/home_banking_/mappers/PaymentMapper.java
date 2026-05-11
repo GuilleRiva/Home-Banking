@@ -1,6 +1,7 @@
 package com.home_banking_.mappers;
 
 import com.home_banking_.dto.request.PaymentRequestDto;
+import com.home_banking_.dto.request.ServicePaymentRequestDto;
 import com.home_banking_.dto.response.PaymentResponseDto;
 import com.home_banking_.enums.ServiceEntity;
 import com.home_banking_.enums.StatusPayment;
@@ -23,6 +24,10 @@ public interface PaymentMapper {
     @Mapping(source = "serviceEntity", target = "serviceEntity", qualifiedByName = "stringToServiceEntity")
     Payment toEntity(PaymentRequestDto dto);
 
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "amount", ignore = true)
+    @Mapping(source = "serviceEntity", target = "serviceEntity", qualifiedByName = "stringToServiceEntity")
+    Payment toEntity(ServicePaymentRequestDto dto);
 
 
     @Named("serviceEntityToString")
