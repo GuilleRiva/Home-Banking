@@ -146,4 +146,12 @@ UsersControllers {
         log.info("User with ID {} successfully deleted", userId);
         return ResponseEntity.noContent().build();
     }
+
+
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYED')")
+    @PatchMapping("/{userId}/activate")
+    public ResponseEntity<UserResponseDto> activeUser(@PathVariable Long userId){
+        return ResponseEntity.ok(userService.activateUser(userId));
+    }
 }

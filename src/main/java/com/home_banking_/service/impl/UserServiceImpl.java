@@ -4,6 +4,8 @@ import com.home_banking_.dto.request.UserRequestDto;
 import com.home_banking_.dto.response.UserProfileResponseDto;
 import com.home_banking_.dto.response.UserResponseDto;
 import com.home_banking_.enums.Rol;
+import com.home_banking_.enums.UserStatus;
+import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.mappers.UsersMapper;
 import com.home_banking_.model.Users;
@@ -53,7 +55,6 @@ public class UserServiceImpl implements UserService {
 
         return usersMapper.toUserResponseDto(users);
     }
-
 
 
     @Override
@@ -106,5 +107,26 @@ public class UserServiceImpl implements UserService {
         }
         usersRepository.deleteById(id);
         log.info("User successfully deleted. ID: {}", id);
+    }
+
+    @Transactional
+    public UserResponseDto activateUser(Long userId) {
+        Users users = usersRepository.findById(userId)
+                .orElseThrow(()-> new ResourceNotFoundException("User not found"));
+
+        if (users.getUserStatus() == UserStatus.ACTIVE) {
+            throw new BusinessException("User is already active");
+        }
+
+        if (users.getUserStatus() == UserStatus.BLOCKED) {
+            throw new BusinessException("Blocked users cannot be activated directly");
+        }
+
+        users.setUserStatus(UserStatus.ACTIVE);
+        Users savedUser= usersRepository.save(users);
+
+        log.info("[USER_ACTIVATED] userId={}", savedUser.getId());
+
+        return usersMapper.toUserResponseDto(savedUser);
     }
 }

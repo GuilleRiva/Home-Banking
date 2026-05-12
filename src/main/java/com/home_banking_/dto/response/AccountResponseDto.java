@@ -3,15 +3,15 @@ package com.home_banking_.dto.response;
 import com.home_banking_.enums.StatusAccount;
 import com.home_banking_.enums.TypeAccount;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Getter
+@Setter
 @Schema(description = "DTO representing account details with sensitive data masked")
 public class AccountResponseDto {
 

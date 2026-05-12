@@ -21,4 +21,6 @@ public interface UserService {
     UserProfileResponseDto save(Long id , @Valid UserResponseDto dto);
 
     void deleteById(Long id);
+
+    UserResponseDto activateUser(Long userId);
 }

@@ -1,19 +1,25 @@
 package com.home_banking_.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.home_banking_.dto.request.AccountCreateRequestDto;
 import com.home_banking_.dto.response.AccountResponseDto;
+import com.home_banking_.dto.response.TransactionResponseDto;
 import com.home_banking_.enums.Currency;
+import com.home_banking_.enums.IdempotencyOperation;
 import com.home_banking_.enums.StatusAccount;
 import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.mappers.AccountMapper;
 import com.home_banking_.model.Account;
+import com.home_banking_.model.IdempotencyRecord;
 import com.home_banking_.model.Users;
 import com.home_banking_.repository.AccountRepository;
 import com.home_banking_.repository.LoanRepository;
 import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.AccountService;
 import com.home_banking_.service.AuditLogService;
+import com.home_banking_.service.idempotency.IdempotencyService;
+import com.home_banking_.service.idempotency.IdempotencyValidationResult;
 import com.home_banking_.service.security.CurrentUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +42,8 @@ public class AccountServiceImpl implements AccountService {
     private final AuditLogService auditLogService;
     private final CurrentUserService currentUserService;
     private final LoanRepository loanRepository;
+    private final IdempotencyService idempotencyService;
+    private final ObjectMapper objectMapper;
 
     private static final int MAX_ACCOUNTS_PER_USER = 3;
     private static final int MIN_ALIAS_LENGTH = 6;
@@ -43,7 +51,45 @@ public class AccountServiceImpl implements AccountService {
 
     @Transactional
     @Override
-    public AccountResponseDto createAccount(AccountCreateRequestDto dto) {
+    public AccountResponseDto createAccount(String idempotencyKey, AccountCreateRequestDto dto) {
+        Long userId = currentUserService.getCurrentUserId();
+
+        IdempotencyValidationResult validationResult =
+                idempotencyService.validateAndRegister(
+                        idempotencyKey,
+                        userId,
+                        IdempotencyOperation.CREATE_ACCOUNT,
+                        dto
+                );
+
+        if (validationResult.isReplay()) {
+            log.info("[CREATE_ACCOUNT_IDEMPOTENT_REPLAY] userId={} idempotencyKey={}", userId, idempotencyKey);
+            return replayResponse(validationResult.getRecord());
+        }
+
+        AccountResponseDto responseDto = executeCreateAccount(dto);
+        IdempotencyRecord record = validationResult.getRecord();
+
+        try {
+            String responseBody = objectMapper.writeValueAsString(responseDto);
+
+            idempotencyService.markAsCompleted(
+                    record.getId(),
+                    201,
+                    responseBody,
+                    responseDto.getId()
+            );
+            return responseDto;
+        }catch (Exception e) {
+            String errorMessage = e.getMessage() != null ? e.getMessage() : "Unexpected error during create account ";
+            idempotencyService.markAsFailed(record.getId(), errorMessage);
+
+            throw new BusinessException("Could not complete idempotent create account operation");
+        }
+    }
+
+
+    private AccountResponseDto executeCreateAccount(AccountCreateRequestDto dto) {
         String email = currentUserService.getCurrentUserEmail();
 
         log.info("[ACCOUNT_CREATE_INIT] userEmail={} alias={} accountType={}",
@@ -63,12 +109,6 @@ public class AccountServiceImpl implements AccountService {
         account.setCreationDate(LocalDateTime.now());
         account.setStatusAccount(StatusAccount.ACTIVE);
         account.setCurrency(Currency.ARS);
-      /* LOG TEMPORAL**/
-        log.info("[ACCOUNT_CREATE_DEBUG] generating account number");
-      /*  account.setAccountNumber(generateUniqueAccountNumber());
-        /**LOG TEMPORAL**/
-        log.info("[ACCOUNT_CREATE_DEBUG] generating CBU");
-    /*    account.setCBU(generateUniqueCbu());*/
 
         log.info("[ACCOUNT_CREATE_DEBUG] beforeSave userIdInAccount={} alias={} typeAccount={} ",
                 account.getUsers() != null ? account.getUsers().getId() : null,
@@ -81,19 +121,11 @@ public class AccountServiceImpl implements AccountService {
                 savedAccount.getId(),
                 savedAccount.getUsers() != null ? savedAccount.getUsers().getId() : null);
 
-      /*  auditLogService.registerEvent(
-                users.getId(),
-                "Account created successfully. accountId=" + savedAccount.getId()
-                        + ", alias=" + savedAccount.getAlias()
-                        + ", accountType=" + savedAccount.getTypeAccount(),
-                "CREATE_ACCOUNT",
-                "BANKING"
-        );*/
-
         log.info("[ACCOUNT_CREATE_SUCCESS] userEmail={} accountId={} alias={} accountType={}",
                 email, savedAccount.getId(), savedAccount.getAlias(), savedAccount.getTypeAccount());
 
         return accountMapper.toDto(savedAccount);
+
     }
 
     @Override
@@ -274,5 +306,13 @@ public class AccountServiceImpl implements AccountService {
     private String maskAlias(String alias) {
         if (alias == null || alias.length() < 4) return "****";
         return alias.substring(0,2) + "****" + alias.substring(alias.length() - 2);
+    }
+
+    private AccountResponseDto replayResponse(IdempotencyRecord record) {
+        try {
+            return objectMapper.readValue(record.getResponseBody(), AccountResponseDto.class);
+        } catch (Exception e) {
+            throw new BusinessException("Error reconstructing idempotent response");
+        }
     }
 }

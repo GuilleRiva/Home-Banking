@@ -7,5 +7,8 @@ public enum IdempotencyOperation {
     WITHDRAW,
     LOAN_GRANT,
     REQUEST_LOAN,
-    PAYMENT_SERVICE
+    PAYMENT_SERVICE,
+    CREATE_ACCOUNT,
+    CREATE_USER,
+    REGISTER
 }

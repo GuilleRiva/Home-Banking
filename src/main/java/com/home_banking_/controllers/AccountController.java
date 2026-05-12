@@ -2,6 +2,7 @@ package com.home_banking_.controllers;
 
 import com.home_banking_.dto.request.AccountCreateRequestDto;
 import com.home_banking_.dto.response.AccountResponseDto;
+import com.home_banking_.dto.response.UserResponseDto;
 import com.home_banking_.service.AccountService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -29,7 +30,6 @@ import java.util.List;
 public class AccountController {
 
     private final AccountService accountService;
-
 
     @Operation(
             summary = "Retrieve all accounts",
@@ -113,11 +113,13 @@ public class AccountController {
             @ApiResponse(responseCode = "400", description = "Invalid request")
     })
     @PostMapping
-    public ResponseEntity<AccountResponseDto>createAccount(@RequestBody @Valid AccountCreateRequestDto dto){
+    public ResponseEntity<AccountResponseDto>createAccount(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestBody @Valid AccountCreateRequestDto dto){
         log.info("POST /api/accounts - Creating account with alias={} and accountType={}",
                 dto.getAlias(), dto.getTypeAccount());
 
-        AccountResponseDto created = accountService.createAccount(dto);
+        AccountResponseDto created = accountService.createAccount(idempotencyKey, dto);
         log.info("Account created successfully. ID: {}", created.getId());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
@@ -168,4 +170,5 @@ public class AccountController {
 
         return  ResponseEntity.noContent().build();
     }
+
 }
