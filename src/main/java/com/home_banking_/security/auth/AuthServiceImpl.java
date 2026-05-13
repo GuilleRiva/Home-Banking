@@ -1,13 +1,18 @@
 package com.home_banking_.security.auth;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.home_banking_.dto.auth.*;
 import com.home_banking_.dto.request.IPAddressRequestDto;
+import com.home_banking_.enums.IdempotencyOperation;
 import com.home_banking_.enums.Rol;
 import com.home_banking_.enums.JwtTokenType;
 import com.home_banking_.enums.UserStatus;
 import com.home_banking_.exceptions.BusinessException;
+import com.home_banking_.model.IdempotencyRecord;
 import com.home_banking_.model.Users;
 import com.home_banking_.repository.UsersRepository;
+import com.home_banking_.service.idempotency.IdempotencyService;
+import com.home_banking_.service.idempotency.IdempotencyValidationResult;
 import com.home_banking_.service.impl.JwtService;
 import com.home_banking_.security.token.Token;
 import com.home_banking_.security.token.TokenRepository;
@@ -15,7 +20,6 @@ import com.home_banking_.security.user.UserDetailsImpl;
 import com.home_banking_.service.AuditLogService;
 import com.home_banking_.service.GeoLocationService;
 import com.home_banking_.service.IPAddressService;
-import com.home_banking_.service.security.CurrentUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,7 +28,6 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +49,8 @@ public class AuthServiceImpl implements AuthService{
     private final AuditLogService auditLogService;
     private final IPAddressService ipAddressService;
     private final GeoLocationService geoLocationService;
+    private final IdempotencyService idempotencyService;
+    private final ObjectMapper objectMapper;
 
 
     @Value("${application.security.jwt.expiration-ms:900000}")
@@ -53,7 +58,46 @@ public class AuthServiceImpl implements AuthService{
 
     @Override
     @Transactional
-    public RegisterResponseDto register(RegisterRequestDto request) {
+    public RegisterResponseDto register(String idempotencyKey,RegisterRequestDto request) {
+        Long userId = null;
+
+        IdempotencyValidationResult validationResult =
+                idempotencyService.validateAndRegister(
+                        idempotencyKey,
+                        null,
+                        IdempotencyOperation.REGISTER,
+                        request
+                );
+
+        if (validationResult.isReplay()){
+            log.info("[REGISTER_IDEMPOTENT_REPLAY] idempotencyKey={}", idempotencyKey);
+            return replayResponse(validationResult.getRecord());
+        }
+
+        RegisterResponseDto responseDto = executeRegister(request);
+        IdempotencyRecord record = validationResult.getRecord();
+
+        try{
+            String responseBody = objectMapper.writeValueAsString(responseDto);
+
+            idempotencyService.markAsCompleted(
+                    record.getId(),
+                    201,
+                    responseBody,
+                    null
+            );
+            return responseDto;
+
+        }catch (Exception ex) {
+            String errorMessage = ex.getMessage() != null ? ex.getMessage() : "Unexpected error during register";
+
+            idempotencyService.markAsFailed(record.getId(), errorMessage);
+
+            throw new BusinessException("Couldn't complete idempotent register operation");
+        }
+    }
+
+    private RegisterResponseDto executeRegister(RegisterRequestDto request){
         String normalizedEmail = request.getEmail().trim().toLowerCase();
 
         if (usersRepository.existsByEmail(normalizedEmail)) {
@@ -73,17 +117,17 @@ public class AuthServiceImpl implements AuthService{
         users.setAccountLocked(false);
         users.setLockTime(null);
 
-        usersRepository.save(users);
+        Users savedUser = usersRepository.save(users);
 
         auditLogService.registerEvent(
-                users.getId(),
-                "User registered successfully with status " + users.getUserStatus(),
+                savedUser.getId(),
+                "User registered successfully with status " + savedUser.getUserStatus(),
                 "REGISTER_SUCCESS",
                 "AUTH"
         );
 
         log.info("User registered successfully with pending activation. userId={}, status={}",
-                users.getId(), users.getUserStatus());
+                savedUser.getId(), savedUser.getUserStatus());
 
         return new RegisterResponseDto(
                 "Registration completed successfully. Account activation pending. ",
@@ -391,4 +435,12 @@ public class AuthServiceImpl implements AuthService{
          tokens.forEach(t -> { t.setExpired(true); t.setRevoked(true);});
          tokenRepository.saveAll(tokens);
         }
+
+    private RegisterResponseDto replayResponse(IdempotencyRecord record) {
+        try {
+            return objectMapper.readValue(record.getResponseBody(), RegisterResponseDto.class);
+        } catch (Exception e) {
+            throw new BusinessException("Couldn't replay idempotent create user response");
+        }
+    }
 }

@@ -9,6 +9,7 @@ import com.home_banking_.model.Users;
 import com.home_banking_.repository.IdempotencyRecordRepository;
 import com.home_banking_.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
+import org.apache.catalina.User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,9 +37,17 @@ public class IdempotencyServiceImpl implements IdempotencyService{
 
         String requestHash = requestHashService.generateHash(request);
 
-        IdempotencyRecord existingRecord = idempotencyRecordRepository
-                .findByIdempotencyKeyAndUserIdAndOperation(idempotencyKey, userId, operation)
-                .orElse(null);
+        IdempotencyRecord existingRecord;
+
+        if (userId == null) {
+            existingRecord = idempotencyRecordRepository
+                    .findByIdempotencyKeyAndUserIsNullAndOperation(idempotencyKey, operation)
+                    .orElse(null);
+        } else {
+            existingRecord = idempotencyRecordRepository
+                    .findByIdempotencyKeyAndUserIdAndOperation(idempotencyKey, userId, operation)
+                    .orElse(null);
+        }
 
         if (existingRecord != null) {
             validateSamePayload(existingRecord, requestHash);
@@ -56,8 +65,12 @@ public class IdempotencyServiceImpl implements IdempotencyService{
             );
         }
 
-        Users user = usersRepository.findById(userId)
-                .orElseThrow(()-> new ResourceNotFoundException("User not found with id:" + userId));
+        Users user = null;
+
+        if (userId != null) {
+            user = usersRepository.findById(userId)
+                    .orElseThrow(()-> new ResourceNotFoundException("User not found with id:" + userId));
+        }
 
         IdempotencyRecord newRecord = IdempotencyRecord.builder()
                 .idempotencyKey(idempotencyKey)

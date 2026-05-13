@@ -23,8 +23,10 @@ public class AuthController {
 
     @Operation(summary = "Register a new user", description = "Create a new user in the database")
     @PostMapping("/register")
-    public ResponseEntity<RegisterResponseDto> register (@RequestBody @Valid RegisterRequestDto request){
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
+    public ResponseEntity<RegisterResponseDto> register (
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestBody @Valid RegisterRequestDto request){
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(idempotencyKey, request));
     }
 
 
@@ -46,8 +48,6 @@ public class AuthController {
     }
 
 
-
-
     @Operation(summary = "Logout ", description = "Revokes the user's current token (logout)")
     @PostMapping("/logout")
     public ResponseEntity<Void> logout (@RequestHeader("Authorization") String bearerToken){
@@ -55,8 +55,6 @@ public class AuthController {
         authService.logout(bearerToken.trim());
         return ResponseEntity.noContent().build();
     }
-
-
 
 
 

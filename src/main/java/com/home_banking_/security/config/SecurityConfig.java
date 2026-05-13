@@ -49,10 +49,11 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(req -> req
                         .requestMatchers(
-                                "/api/auth/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",
+                                "/api/auth/login",
+                                "/api/auth/register",
                                 "/error",
                                 "/actuator/***",
                                 "/favicon.ico"
@@ -98,19 +99,15 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource(){
         CorsConfiguration configuration = new CorsConfiguration();
 
-        //Dominios permitdos
         configuration.setAllowedOrigins(List.of(
                 "https://www.api-home-banking.com",
-                "http://localhost:3000" // para desarrollo local
+                "http://localhost:3000"
         ));
 
-        //Metodos HTTP permitidos
         configuration.setAllowedMethods(List.of("GET", "PUT", "DELETE", "POST"));
 
-        // Headers permitidos
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
 
-        // permito evitar cookies/ token en headers
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

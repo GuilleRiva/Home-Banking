@@ -32,8 +32,7 @@ UsersControllers {
 
     private final UserService userService;
 
-
-
+    
     @Operation(
             summary = "Get all users",
             description = "Returns a list of all users registered in the system."
@@ -104,10 +103,12 @@ UsersControllers {
             @ApiResponse(responseCode = "400", description = "Invalid user request")
     })
     @PostMapping
-    public ResponseEntity<UserProfileResponseDto> createUser(@RequestBody @Valid UserRequestDto newUser){
+    public ResponseEntity<UserProfileResponseDto> createUser(
+            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestBody @Valid UserRequestDto newUser){
         log.info("POST /api/users - Registering new user: {}", newUser.getEmail());
 
-        UserProfileResponseDto created = userService.createUser(newUser);
+        UserProfileResponseDto created = userService.createUser(idempotencyKey, newUser);
         log.info("User created successfully with ID: {}", created.getId());
         return new ResponseEntity<>(created, HttpStatus.CREATED);
     }

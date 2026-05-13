@@ -15,5 +15,10 @@ public interface IdempotencyRecordRepository extends JpaRepository<IdempotencyRe
             IdempotencyOperation operation
     );
 
+    Optional<IdempotencyRecord> findByIdempotencyKeyAndUserIsNullAndOperation(
+            String idempotencyKey,
+            IdempotencyOperation operation
+    );
+
     void deleteByExpiresAtBefore(LocalDateTime dateTime);
 }

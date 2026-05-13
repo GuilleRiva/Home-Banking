@@ -4,7 +4,7 @@ import com.home_banking_.dto.auth.*;
 
 public interface AuthService {
 
-    RegisterResponseDto register (RegisterRequestDto request);
+    RegisterResponseDto register (String idempotencyKey, RegisterRequestDto request);
 
     AuthResponse login (AuthRequest request, String ipAddress);
 

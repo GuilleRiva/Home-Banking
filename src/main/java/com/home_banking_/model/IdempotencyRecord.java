@@ -28,7 +28,7 @@ public class IdempotencyRecord {
     @Column(name = "idempotency_key", nullable = false, length = 255)
     private String idempotencyKey;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private Users user;
 

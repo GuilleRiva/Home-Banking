@@ -14,7 +14,7 @@ public interface UserService {
 
     UserResponseDto findByEmail(String email);
 
-    UserProfileResponseDto createUser(UserRequestDto dto);
+    UserProfileResponseDto createUser(String idempotencyKey,UserRequestDto dto);
 
     List<UserResponseDto> findAll();
 
