@@ -53,7 +53,7 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Transactional
     @Override
-    public PaymentResponseDto makePayment(String idempotencyKey, PaymentRequestDto dto) {
+    public PaymentResponseDto makePayment(String idempotencyKey, PaymentRequestDto dto)  {
         Long userId = currentUserService.getCurrentUserId();
 
         log.info("[PAYMENT_IDEMPOTENCY_INIT] userId={} accountId={} amount={}",
@@ -79,19 +79,13 @@ public class PaymentServiceImpl implements PaymentService {
             throw new BusinessException("This payment is currently being processed");
         }
 
-        PaymentResponseDto response = executePayment(dto);
-
-        idempotencyService.markAsCompleted(
-                result.getRecord().getId(),
-                HttpStatus.CREATED.value(),
-                serializePaymentResponse(response),
-                response.getId()
+        return idempotencyService.executeAndComplete(
+                result.getRecord(),
+                ()-> executePayment(dto),
+                PaymentResponseDto::getId,
+                HttpStatus.CREATED,
+                "Unexpected error during payment"
         );
-
-        log.info("[PAYMENT_IDEMPOTENCY_COMPLETED] userId={} paymentId={} recordId={}",
-                userId, response.getId(), result.getRecord().getId());
-
-        return response;
     }
 
 
@@ -101,35 +95,23 @@ public class PaymentServiceImpl implements PaymentService {
         log.info("[PAYMENT_INIT] userEmail={} accountId={} amount={}",
                 email, dto.getAccountId(), dto.getAmount());
 
-        validateAmount(dto.getAmount());
+        validatePaymentRequest(dto);
 
         Account account = getOwnedAccountForUpdate(dto.getAccountId(), email);
 
-        validateAccountActive(account);
-        validateSufficientBalance(account, dto.getAmount());
+        validateAccountCanMakePayment(account,dto.getAmount());
 
-        account.setBalance(account.getBalance().subtract(dto.getAmount()));
+        debitAccount(account,dto.getAmount());
 
-        Payment payment = paymentMapper.toEntity(dto);
-        payment.setDescription(dto.getDescription());
-        payment.setAccount(account);
-        payment.setAmount(dto.getAmount());
-        payment.setPaymentDate(LocalDateTime.now());
-        payment.setStatusPayment(StatusPayment.COMPLETED);
+        Payment payment = buildPayment(dto,account);
 
         Payment savedPayment = paymentRepository.save(payment);
         accountRepository.save(account);
 
+        registerPaymentCompletedAudit(account,savedPayment);
+
         log.info("[PAYMENT_SUCCESS] userEmail={} accountId={} paymentId={} amount={}",
                 email, account.getId(),savedPayment.getId(), savedPayment.getAmount());
-
-        auditLogService.registerPaymentEvent(
-                        account.getUsers().getId(),
-                        "Payment completed. accountId=" + account.getId() + ", amount=" + dto.getAmount(),
-
-                PaymentAuditAction.PAYMENT_COMPLETED,
-                AuditType.TRANSACTION
-                );
 
         return paymentMapper.toDto(savedPayment);
 
@@ -189,10 +171,9 @@ public class PaymentServiceImpl implements PaymentService {
 
         Account account = getOwnedAccountForUpdate(dto.getAccountId(), email);
 
-        validateAccountActive(account);
-        validateSufficientBalance(account, dto.getAmount());
+        validateAccountCanMakePayment(account,dto.getAmount());
 
-        account.setBalance(account.getBalance().subtract(dto.getAmount()));
+        debitAccount(account, dto.getAmount());
 
         Payment payment = buildServicePayment(dto,account);
 
@@ -237,7 +218,7 @@ public class PaymentServiceImpl implements PaymentService {
     public List<PaymentResponseDto> getPaymentByEntity(ServiceEntity entity) {
         List<Payment> payments = paymentRepository.findByServiceEntity(entity);
 
-        log.info("Total payments found for entity {}: {}", entity, payments.size());
+        log.info("Total payments found for entity={}: payments={}", entity, payments.size());
 
         return payments.stream()
                 .map(paymentMapper::toDto)
@@ -249,6 +230,18 @@ public class PaymentServiceImpl implements PaymentService {
     private Account getOwnedAccount(Long accountId, String email) {
         return accountRepository.findByIdAndUsersEmail(accountId, email)
                 .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
+    }
+
+    private Payment buildPayment(PaymentRequestDto dto, Account account) {
+        Payment payment = new Payment();
+
+        payment.setDescription(dto.getDescription());
+        payment.setAmount(dto.getAmount());
+        payment.setAccount(account);
+        payment.setPaymentDate(LocalDateTime.now());
+        payment.setStatusPayment(StatusPayment.COMPLETED);
+
+        return payment;
     }
 
     private void validateAccountActive(Account account) {
@@ -291,6 +284,22 @@ public class PaymentServiceImpl implements PaymentService {
         }
     }
 
+    private void validatePaymentRequest(PaymentRequestDto dto) {
+        validateAmount(dto.getAmount());
+
+        if (dto.getAccountId() == null) {
+            throw new BusinessException("Account ID is required");
+        }
+        if (dto.getDescription() == null || dto.getDescription().isBlank()) {
+            throw new BusinessException("Payment description is required");
+        }
+    }
+
+    private void validateAccountCanMakePayment(Account account,BigDecimal amount) {
+        validateAccountActive(account);
+        validateSufficientBalance(account, amount);
+    }
+
     private PaymentResponseDto deserializePaymentResponse(String responseBody) {
         try {
             return objectMapper.readValue(responseBody, PaymentResponseDto.class);
@@ -299,6 +308,21 @@ public class PaymentServiceImpl implements PaymentService {
 
             throw new BusinessException("The payment could not be processed.");
         }
+    }
+
+    private void debitAccount(Account account, BigDecimal amount) {
+        account.setBalance(account.getBalance().subtract(amount));
+    }
+
+    private void registerPaymentCompletedAudit(Account account, Payment payment) {
+        auditLogService.registerPaymentEvent(
+                account.getUsers().getId(),
+                "Payment completed. paymentId=" + payment.getId()
+                        + ", accountId=" + account.getId()
+                        + ", amount=" + payment.getAmount(),
+                PaymentAuditAction.PAYMENT_COMPLETED,
+                AuditType.TRANSACTION
+        );
     }
 
     private String serializePaymentResponse(PaymentResponseDto response) {

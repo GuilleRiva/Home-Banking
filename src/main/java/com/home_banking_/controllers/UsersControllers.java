@@ -31,6 +31,7 @@ public class
 UsersControllers {
 
     private final UserService userService;
+    private static final String IDEMPOTENCY_KEY_HEADER = "Idempotency_Key";
 
     
     @Operation(
@@ -43,9 +44,9 @@ UsersControllers {
                             array = @ArraySchema(schema = @Schema(implementation = UserResponseDto.class))))
     })
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED','AUDITOR')")
     public ResponseEntity<List<UserResponseDto>> getAll(){
-        log.info(">>> ENTER getAllUsers");
+
         log.info("GET /api/users - Requesting list of all users");
 
         var users = userService.findAll();
@@ -66,7 +67,7 @@ UsersControllers {
             @ApiResponse(responseCode = "404", description = "User not found")
     })
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED','AUDITOR')")
     public ResponseEntity<UserResponseDto> getUserById(
             @Parameter(name = "userId", description = "Unique identifier of the user", required = true)
             @PathVariable Long id){
@@ -81,7 +82,7 @@ UsersControllers {
 
 
     @GetMapping("/email/{email}")
-    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED','AUDITOR')")
     public ResponseEntity<UserResponseDto> getByEmail(@PathVariable String email){
         log.info("GET /api/users/email/{} - Searching for user",email);
 
@@ -104,7 +105,7 @@ UsersControllers {
     })
     @PostMapping
     public ResponseEntity<UserProfileResponseDto> createUser(
-            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestHeader(IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @RequestBody @Valid UserRequestDto newUser){
         log.info("POST /api/users - Registering new user: {}", newUser.getEmail());
 
@@ -115,8 +116,9 @@ UsersControllers {
 
 
     @PostMapping("/{userId}")
-    public ResponseEntity<UserProfileResponseDto> updateUser(@PathVariable Long userId,
-                                                             @Valid @RequestBody UserResponseDto updatedUser){
+    public ResponseEntity<UserProfileResponseDto> updateUser(
+            @PathVariable Long userId,
+            @Valid @RequestBody UserResponseDto updatedUser){
 
         log.info("POST /api/users/{} - Updating user", userId);
 
@@ -124,7 +126,6 @@ UsersControllers {
         log.info("User successfully updated: {}", userResponse.getEmail());
         return ResponseEntity.ok(userResponse);
     }
-
 
 
     @Operation(
@@ -136,7 +137,7 @@ UsersControllers {
             @ApiResponse(responseCode = "404", description = "User not found")
     })
     @DeleteMapping("/{userId}")
-    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteUser(
             @Parameter(name = "userId", description = "Unique identifier of the user", required = true)
             @PathVariable Long userId){

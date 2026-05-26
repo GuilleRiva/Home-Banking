@@ -33,8 +33,6 @@ public class IPAddressController {
     private final IPAddressService ipAddressService;
     private final UsersRepository usersRepository;
 
-
-
     @Operation(
             summary = "Register a new IP address.",
             description = "Register a new IP address in the system, associated with a specified user account."
@@ -46,16 +44,15 @@ public class IPAddressController {
             @ApiResponse(responseCode = "400", description = "Invalid request data.")
     })
     @PostMapping("/register")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('AUDITOR')")
     public ResponseEntity<IPAddressResponseDto>registerIP(@RequestBody IPAddressRequestDto dto){
-        log.info("POST /api/ip/register - Registering IP for userId: {} | IP: {}", dto.getId(), dto.getDirectionIP());
+        log.info("POST /api/ip/register - Registering IP for userId: {} | IP: {}", dto.getUserId(), dto.getIpAddress());
 
 
         IPAddressResponseDto registeredIP = ipAddressService.registerIP(dto);
-        log.info("IP successfully registered for userID: {}", dto.getId());
+        log.info("IP successfully registered for userID: {}", dto.getUserId());
         return ResponseEntity.status(HttpStatus.CREATED).body(registeredIP);
     }
-
 
 
     @Operation(
@@ -68,7 +65,7 @@ public class IPAddressController {
             @ApiResponse(responseCode = "400", description = "Invalid IP ID")
     })
     @PutMapping("/{ipId}/suspicious")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('AUDITOR')")
     public ResponseEntity<Void> makeAsSuspicious(
             @Parameter(name = "IpId", description = "Unique identifier of the IP address", required = true)
             @PathVariable Long ipId){
@@ -81,8 +78,6 @@ public class IPAddressController {
     }
 
 
-
-
     @Operation(
             summary = "Check if an IP address is suspicious",
             description = "Returns true if the specified IP address is considered suspicious, false otherwise."
@@ -93,7 +88,7 @@ public class IPAddressController {
             schema = @Schema(type = "boolean", example = "true")))
     )
     @GetMapping("/check")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('AUDITOR')")
     public ResponseEntity<Boolean> isSuspicious(@RequestParam String ip){
         log.info("GET /api/ip/check - Checking if the IP is suspicious. {}", ip);
 
@@ -102,7 +97,6 @@ public class IPAddressController {
 
         return ResponseEntity.ok(result);
     }
-
 
 
 

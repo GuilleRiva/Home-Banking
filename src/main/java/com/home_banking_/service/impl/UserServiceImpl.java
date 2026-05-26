@@ -2,7 +2,6 @@ package com.home_banking_.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.home_banking_.dto.request.UserRequestDto;
-import com.home_banking_.dto.response.AccountResponseDto;
 import com.home_banking_.dto.response.UserProfileResponseDto;
 import com.home_banking_.dto.response.UserResponseDto;
 import com.home_banking_.enums.IdempotencyOperation;
@@ -20,6 +19,7 @@ import com.home_banking_.service.idempotency.IdempotencyValidationResult;
 import com.home_banking_.service.security.CurrentUserService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,12 +48,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public UserResponseDto findById(Long id) {
-
-        Users user = usersRepository.findById(id)
-                .orElseThrow(()->  new ResourceNotFoundException(
-                        "User not found with ID:" + id
-                ));
-
+        Users user = getUserByIdOrThrow(id);
         return usersMapper.toUserResponseDto(user);
     }
 
@@ -63,7 +58,7 @@ public class UserServiceImpl implements UserService {
 
         Users users = usersRepository.findByEmail(email)
                 .orElseThrow(()-> new ResourceNotFoundException(
-                        "User not found with email:" + email
+                        "User not found with email: " + email
                 ));
 
         return usersMapper.toUserResponseDto(users);
@@ -88,27 +83,18 @@ public class UserServiceImpl implements UserService {
             return replayResponse(validationResult.getRecord());
         }
 
-        UserProfileResponseDto responseDto = executeCreateUser(dto);
-        IdempotencyRecord record = validationResult.getRecord();
+        UserProfileResponseDto responseDto = idempotencyService.executeAndComplete(
+                validationResult.getRecord(),
+                ()-> executeCreateUser(dto),
+                UserProfileResponseDto::getId,
+                HttpStatus.CREATED,
+                "Unexpected error during create user"
+        );
 
-        try{
-            String responseBody = objectMapper.writeValueAsString(responseDto);
+        log.info("[CREATE_USER_IDEMPOTENT_COMPLETED] userId={} createdUserId={} recordId={}",
+                userId,responseDto.getId(),validationResult.getRecord().getId());
 
-            idempotencyService.markAsCompleted(
-                    record.getId(),
-                    201,
-                    responseBody,
-                    responseDto.getId()
-            );
-            return responseDto;
-        }catch (Exception ex) {
-            String errorMessage = ex.getMessage() != null ? ex.getMessage() : "Unexpected error during create user";
-
-            idempotencyService.markAsFailed(record.getId(), errorMessage);
-
-            throw new BusinessException("Couldn't complete idempotent create user operation");
-        }
-
+        return responseDto;
     }
 
     private UserProfileResponseDto executeCreateUser(UserRequestDto dto) {
@@ -134,10 +120,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserProfileResponseDto save(Long id, @Valid UserResponseDto dto) {
 
-        Users existingUser = usersRepository.findById(id)
-                .orElseThrow(()-> new ResourceNotFoundException(
-                        "User not found with ID:" + id
-                ));
+        Users existingUser = getUserByIdOrThrow(id);
 
         existingUser.setName(dto.getName());
         existingUser.setSurname(dto.getSurname());
@@ -164,8 +147,7 @@ public class UserServiceImpl implements UserService {
 
     @Transactional
     public UserResponseDto activateUser(Long userId) {
-        Users users = usersRepository.findById(userId)
-                .orElseThrow(()-> new ResourceNotFoundException("User not found"));
+        Users users = getUserByIdOrThrow(userId);
 
         if (users.getUserStatus() == UserStatus.ACTIVE) {
             throw new BusinessException("User is already active");
@@ -189,5 +171,10 @@ public class UserServiceImpl implements UserService {
         } catch (Exception e) {
             throw new BusinessException("Couldn't replay idempotent create user response");
         }
+    }
+
+    private Users getUserByIdOrThrow(Long id) {
+        return usersRepository.findById(id)
+                .orElseThrow(()-> new ResourceNotFoundException("User not found with ID: " + id));
     }
 }

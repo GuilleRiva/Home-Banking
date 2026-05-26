@@ -3,10 +3,7 @@ package com.home_banking_.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.home_banking_.dto.request.AccountCreateRequestDto;
 import com.home_banking_.dto.response.AccountResponseDto;
-import com.home_banking_.dto.response.TransactionResponseDto;
-import com.home_banking_.enums.Currency;
-import com.home_banking_.enums.IdempotencyOperation;
-import com.home_banking_.enums.StatusAccount;
+import com.home_banking_.enums.*;
 import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.mappers.AccountMapper;
@@ -68,24 +65,10 @@ public class AccountServiceImpl implements AccountService {
         }
 
         AccountResponseDto responseDto = executeCreateAccount(dto);
-        IdempotencyRecord record = validationResult.getRecord();
 
-        try {
-            String responseBody = objectMapper.writeValueAsString(responseDto);
+        completeIdempotencyRecord(validationResult.getRecord(), responseDto);
 
-            idempotencyService.markAsCompleted(
-                    record.getId(),
-                    201,
-                    responseBody,
-                    responseDto.getId()
-            );
-            return responseDto;
-        }catch (Exception e) {
-            String errorMessage = e.getMessage() != null ? e.getMessage() : "Unexpected error during create account ";
-            idempotencyService.markAsFailed(record.getId(), errorMessage);
-
-            throw new BusinessException("Could not complete idempotent create account operation");
-        }
+        return responseDto;
     }
 
 
@@ -93,40 +76,90 @@ public class AccountServiceImpl implements AccountService {
         String email = currentUserService.getCurrentUserEmail();
 
         log.info("[ACCOUNT_CREATE_INIT] userEmail={} alias={} accountType={}",
-                email, dto.getAlias(), dto.getTypeAccount());
+                email, maskAlias(dto.getAlias()), dto.getTypeAccount());
 
-        Users users = usersRepository.findByEmail(currentUserService.getCurrentUserEmail())
+        Users users = usersRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        log.info("[ACCOUNT_CREATE_DEBUG] authenticatedUserId={} authenticatedEmail={}", users.getId(), users.getEmail());
+        log.debug("[ACCOUNT_CREATE_MAPPING] authenticatedUserId={} authenticatedEmail={}", users.getId(), users.getEmail());
 
-        validateAlias(dto.getAlias());
-        validateAccountCreationRules(users.getId(), dto);
+        String normalizedAlias = validateAndNormalizeAlias(dto.getAlias());
+
+        validateAccountCreationRules(users.getId(), dto.getTypeAccount(), normalizedAlias);
 
         Account account = accountMapper.toEntity(dto);
+        account.setAlias(normalizedAlias);
+        account.setAccountNumber(generateUniqueAccountNumber());
+        account.setCBU(generateUniqueCbu());
         account.setUsers(users);
         account.setBalance(BigDecimal.ZERO);
         account.setCreationDate(LocalDateTime.now());
         account.setStatusAccount(StatusAccount.ACTIVE);
         account.setCurrency(Currency.ARS);
 
-        log.info("[ACCOUNT_CREATE_DEBUG] beforeSave userIdInAccount={} alias={} typeAccount={} ",
+        log.debug("[ACCOUNT_CREATE_MAPPING] beforeSave userIdInAccount={} alias={} typeAccount={} ",
                 account.getUsers() != null ? account.getUsers().getId() : null,
-                account.getAlias(),
+                account.getMaskAlias(),
                 account.getTypeAccount());
 
         Account savedAccount=accountRepository.save(account);
 
-        log.info("[ACCOUNT_CREATE_DEBUG] afterSave accountId={} userIdInAccount={}",
+        log.debug("[ACCOUNT_CREATE_MAPPING] afterSave accountId={} userIdInAccount={}",
                 savedAccount.getId(),
                 savedAccount.getUsers() != null ? savedAccount.getUsers().getId() : null);
 
         log.info("[ACCOUNT_CREATE_SUCCESS] userEmail={} accountId={} alias={} accountType={}",
-                email, savedAccount.getId(), savedAccount.getAlias(), savedAccount.getTypeAccount());
+                email, savedAccount.getId(), savedAccount.getMaskAlias(), savedAccount.getTypeAccount());
 
         return accountMapper.toDto(savedAccount);
 
     }
+
+
+
+    @Transactional
+    @Override
+    public void deleteAccount(Long id) {
+        String email = currentUserService.getCurrentUserEmail();
+
+        log.info("[ACCOUNT_CLOSE_INIT] userEmail={} accountId={}", email, id);
+
+        Account account = getOwnedAccountForUpdate(id, email);
+
+        if (account.getStatusAccount() == StatusAccount.CLOSED) {
+            log.warn("[ACCOUNT_CLOSE_REJECTED] reason=already_closed. userEmail={} accountId={}",
+                    email, account.getId());
+
+            auditLogService.registerEvent(
+                    account.getUsers().getId(),
+                    "Account closure rejected because is greater tha zero. accountId=" + account.getId()
+                            + ", balance=" + account.getBalance(),
+                    "CLOSE_ACCOUNT_REJECTED",
+                    "BANKING"
+            );
+
+            throw new BusinessException("Account is already closed");
+        }
+
+        validateAccountCanBeClosed(account);
+
+        account.setStatusAccount(StatusAccount.CLOSED);
+        accountRepository.save(account);
+
+        auditLogService.registerEvent(
+                account.getUsers().getId(),
+                "Account closed successfully. accountId=" + account.getId()
+                        + ", alias=" + account.getMaskAlias()
+                        + ", status=" + account.getStatusAccount(),
+                "CLOSE_ACCOUNT",
+                "BANKING"
+        );
+
+        log.info("[ACCOUNT_CLOSE_SUCCESS] userEmail={} accountId={} status={}",
+                email, account.getId(), account.getStatusAccount());
+    }
+
+
 
     @Override
     @Transactional(readOnly = true)
@@ -144,6 +177,8 @@ public class AccountServiceImpl implements AccountService {
         return accounts;
     }
 
+
+
     @Override
     @Transactional(readOnly = true)
     public AccountResponseDto getAccountById(Long id) {
@@ -151,12 +186,14 @@ public class AccountServiceImpl implements AccountService {
 
         log.info("[ACCOUNT_FETCH_BY_ID_INIT] userEmail={} accountId={}", email, id);
 
-        Account account = getOwnedAccountForUpdate(id,email);
+        Account account = getOwnedAccount(id,email);
 
         log.info("[ACCOUNT_FETCH_BY_ID_SUCCESS] userEmail={} accountId{} status={}",
                 email, account.getId(), account.getStatusAccount());
         return accountMapper.toDto(account);
     }
+
+
 
     @Override
     @Transactional(readOnly = true)
@@ -173,6 +210,8 @@ public class AccountServiceImpl implements AccountService {
         return account.getBalance();
     }
 
+
+
     @Override
     @Transactional(readOnly = true)
     public AccountResponseDto getAccountByAlias(String alias) {
@@ -181,69 +220,37 @@ public class AccountServiceImpl implements AccountService {
 
         log.info("[ACCOUNT_FETCH_BY_ALIAS_INIT] userEmail={} alias={}", email, maskedAlias);
 
-       Account account =getOwnedAccountByAlias(alias, maskedAlias);
+       Account account =getOwnedAccountByAlias(alias, email);
        log.info("[ACCOUNT_FETCH_BY_ALIAS_SUCCESS] userEmail={} accountId={} alias={}",
                email, account.getId(), maskedAlias);
 
        return accountMapper.toDto(account);
     }
 
-    @Transactional
-    @Override
-    public void deleteAccount(Long id) {
-        String email = currentUserService.getCurrentUserEmail();
-        log.info("[ACCOUNT_CLOSE_INIT] userEmail={} accountId={}", email, id);
 
-        Account account = getOwnedAccountForUpdate(id, email);
 
-        validateAccountCanBeClosedOrDeleted(account);
 
-        auditLogService.registerEvent(
-                account.getUsers().getId(),
-                "Account closure rejected because is greater tha zero. accountId=" + account.getId()
-                + ", balance=" + account.getBalance(),
-                "CLOSE_ACCOUNT_REJECTED",
-                "BANKING"
-        );
-
-        if (account.getStatusAccount() == StatusAccount.CLOSED) {
-            throw new BusinessException("Account is already closed");
-        }
-        log.warn("[ACCOUNT_CLOSE_REJECTED] Account is already closed. userEmail={} accountId={}",
-                email, account.getId());
-
-        account.setStatusAccount(StatusAccount.CLOSED);
-        accountRepository.save(account);
-
-        auditLogService.registerEvent(
-                account.getUsers().getId(),
-                "Account closed successfully. accountId=" + account.getId()
-                        + ", alias=" + account.getAlias()
-                        + ", status=" + account.getStatusAccount(),
-                "CLOSE_ACCOUNT",
-                "BANKING"
-        );
-       log.info("[ACCOUNT_CLOSE_SUCCESS] userEmail={} accountId={} status={}",
-               email, account.getId(), account.getStatusAccount());
-    }
-
-    // HELPERS //
-    private void validateAlias(String alias) {
+    private String validateAndNormalizeAlias(String alias) {
         if (alias == null || alias.isBlank()) {
             throw new BusinessException("Alias is required");
         }
-        String trimmedAlias = alias.trim();
+        String normalizedAlias = alias.trim().toLowerCase();
 
-        if (trimmedAlias.length() < MIN_ALIAS_LENGTH || trimmedAlias.length() > MAX_ALIAS_LENGTH) {
-            throw new BusinessException("Alias length must be between " + MIN_ALIAS_LENGTH + "and" + MAX_ALIAS_LENGTH + "characters");
+        if (normalizedAlias.length() < MIN_ALIAS_LENGTH || normalizedAlias.length() > MAX_ALIAS_LENGTH) {
+            throw new BusinessException("Alias length must be between " + MIN_ALIAS_LENGTH + " and " +
+                    MAX_ALIAS_LENGTH + " characters");
         }
+        return normalizedAlias;
     }
 
-    private void validateAccountCreationRules(Long userId, AccountCreateRequestDto dto) {
-        if (dto.getTypeAccount() == null) {
+
+
+    private void validateAccountCreationRules(Long userId, TypeAccount typeAccount, String alias) {
+        if (typeAccount  == null) {
             throw new BusinessException("Account type is required");
         }
-        if (accountRepository.existsByUsersIdAndAliasIgnoreCase(userId, dto.getAlias())) {
+
+        if (accountRepository.existsByUsersIdAndAliasIgnoreCase(userId, alias)) {
             throw new BusinessException("Alias already in use");
         }
 
@@ -251,56 +258,89 @@ public class AccountServiceImpl implements AccountService {
             throw new BusinessException("User has reached the maximum number of accounts");
         }
 
-        if (accountRepository.existsByUsersIdAndTypeAccount(userId, dto.getTypeAccount())) {
+        if (accountRepository.existsByUsersIdAndTypeAccount(userId, typeAccount)) {
             throw new BusinessException("User already has an account of this type");
         }
     }
 
-    private void validateAccountCanBeClosedOrDeleted(Account account) {
+
+
+    private void validateAccountCanBeClosed(Account account) {
         if (account.getBalance().compareTo(BigDecimal.ZERO) > 0) {
+            auditLogService.registerEvent(
+                    account.getUsers().getId(),
+                    "Account closure rejected because balance is greater than zero. accountId="
+                            + account.getId()
+                    + ", balance=" + account.getBalance(),
+                    "CLOSE_ACCOUNT_REJECTED",
+                    "BANKING"
+            );
             throw new BusinessException("Account cannot be deleted while balance is greater than zero");
         }
-        auditLogService.registerEvent(
-                account.getUsers().getId(),
-                "Account closure rejected because account has an active loan. accountId=" + account.getId(),
-                "CLOSE_ACCOUNT_REJECTED",
-                "BANKING"
+
+        boolean hasActiveLoans = loanRepository.existsByAccountIdAndLoanStatusIn(
+                account.getId(),
+                List.of(LoanStatus.ACTIVE, LoanStatus.APPROVE)
         );
+
+        if (hasActiveLoans) {
+            auditLogService.registerEvent(
+                    account.getUsers().getId(),
+                    "Account closure rejected because account has active loans. accountId="
+                    + account.getId(),
+                    "CLOSE_ACCOUNT_REJECTED",
+                    "BANKING"
+            );
+
+            throw new BusinessException("Account cannot be closed while it has active loans");
+        }
     }
+
 
     private Account getOwnedAccount(Long accountId, String email) {
         return accountRepository.findByIdAndUsersEmail(accountId, email)
                 .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
     }
 
+
     private Account getOwnedAccountForUpdate(Long accountId, String email) {
         return accountRepository.findByIdAndUsersEmailForUpdate(accountId, email)
                 .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
     }
+
 
     private Account getOwnedAccountByAlias(String alias, String email) {
         return accountRepository.findByAliasAndUsersEmail(alias, email)
                 .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
     }
 
+
     private String generateUniqueAccountNumber() {
         String number;
         do {
-            number = String.valueOf(ThreadLocalRandom.current()
-                    .nextLong(100000000L, 999999999L));
+            number = generateNumericString(12);
         } while (accountRepository.existsByAccountNumber(number));
 
         return number;
     }
 
+
     private String generateUniqueCbu(){
         String cbu;
         do {
-            cbu = String.valueOf(ThreadLocalRandom.current()
-                    .nextLong(1000000000000000000L, 999999999999999999L));
+            cbu = generateNumericString(22);
         }while (accountRepository.existsByCBU(cbu));
 
         return cbu;
+    }
+
+    private String generateNumericString (int length) {
+        StringBuilder builder = new StringBuilder(length);
+
+        for (int i =0; i< length; i++) {
+            builder.append(ThreadLocalRandom.current().nextInt(0,10));
+        }
+        return builder.toString();
     }
 
     private String maskAlias(String alias) {
@@ -313,6 +353,27 @@ public class AccountServiceImpl implements AccountService {
             return objectMapper.readValue(record.getResponseBody(), AccountResponseDto.class);
         } catch (Exception e) {
             throw new BusinessException("Error reconstructing idempotent response");
+        }
+    }
+
+    private void completeIdempotencyRecord(IdempotencyRecord record, AccountResponseDto responseDto) {
+        try {
+            String responseBody = objectMapper.writeValueAsString(responseDto);
+
+            idempotencyService.markAsCompleted(
+                    record.getId(),
+                    201,
+                    responseBody,
+                    responseDto.getId()
+            );
+        } catch (Exception e) {
+            String errorMessage = e.getMessage() != null
+                    ? e.getMessage()
+                    : "Unexpected error during create account";
+
+            idempotencyService.markAsFailed(record.getId(), errorMessage);
+
+            throw new BusinessException("Could not complete idempotent create account operation");
         }
     }
 }

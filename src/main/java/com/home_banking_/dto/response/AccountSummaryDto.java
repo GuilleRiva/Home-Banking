@@ -20,7 +20,7 @@ public class AccountSummaryDto {
 
     @Schema(description = "Alias of the account", example = "mi.cuenta.ahorro")
     private String alias;
-
+    
     @Schema(description = "Current balance of the account",example = "1582.00")
     private BigDecimal balance;
 

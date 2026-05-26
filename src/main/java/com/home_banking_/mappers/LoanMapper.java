@@ -11,7 +11,7 @@ import org.mapstruct.Named;
 @Mapper(componentModel = "spring")
 public interface LoanMapper {
 
-    @Mapping(target = "statusLoan", source = "statusLoan", qualifiedByName = "statusLoanToString")
+    @Mapping(target = "statusLoan", source = "loanStatus", qualifiedByName = "loanStatusToString")
     LoanResponseDto toDto(Loan loan);
 
     @Mapping(target = "id", ignore = true)
@@ -23,15 +23,14 @@ public interface LoanMapper {
     Loan toEntity(LoanSimulationRequestDto dto);
 
 
-    @Named("statusLoanToString")
-    static String statusLoanToString(LoanStatus value){
+    @Named("loanStatusToString")
+    static String LoanStatusToString(LoanStatus value){
         return value != null ? value.name() : null;
     }
 
-    @Named("stringToStatusLoan")
-    static LoanStatus stringToStatusLoan(String value){
+    @Named("stringToLoanStatus")
+    static LoanStatus stringToLoanStatus(String value){
         return value != null ? LoanStatus.valueOf(value) : null;
     }
-
 
 }

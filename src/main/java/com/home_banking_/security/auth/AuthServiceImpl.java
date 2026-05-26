@@ -56,6 +56,8 @@ public class AuthServiceImpl implements AuthService{
     @Value("${application.security.jwt.expiration-ms:900000}")
     private long accessExpirationMs;
 
+    private record AuthTokens(String accessToken, String refreshToken) {}
+
     @Override
     @Transactional
     public RegisterResponseDto register(String idempotencyKey,RegisterRequestDto request) {
@@ -98,43 +100,22 @@ public class AuthServiceImpl implements AuthService{
     }
 
     private RegisterResponseDto executeRegister(RegisterRequestDto request){
-        String normalizedEmail = request.getEmail().trim().toLowerCase();
+        String normalizedEmail = normalizeEmail(request.getEmail());
 
-        if (usersRepository.existsByEmail(normalizedEmail)) {
-            throw new BusinessException("Registration failed");
-        }
+        validateEmailIsAvailable(normalizedEmail);
 
-        Users users = new Users();
-        users.setName(request.getName().trim());
-        users.setSurname(request.getSurname().trim());
-        users.setEmail(normalizedEmail);
-        users.setPassword(passwordEncoder.encode(request.getPassword()));
-        users.setDni(request.getDni().trim());
-        users.setRegistrationDate(LocalDateTime.now());
-        users.setRol(Rol.CLIENT);
-        users.setUserStatus(UserStatus.PENDING_ACTIVATION);
-        users.setFailedLoginAttempts(0);
-        users.setAccountLocked(false);
-        users.setLockTime(null);
+        Users users = buildPendingClientUser(request,normalizedEmail);
 
         Users savedUser = usersRepository.save(users);
 
-        auditLogService.registerEvent(
-                savedUser.getId(),
-                "User registered successfully with status " + savedUser.getUserStatus(),
-                "REGISTER_SUCCESS",
-                "AUTH"
-        );
+        registerSuccessfulRegistrationAudit(savedUser);
 
-        log.info("User registered successfully with pending activation. userId={}, status={}",
+        log.info("[REGISTER_SUCCESS] userId={} status={}",
                 savedUser.getId(), savedUser.getUserStatus());
 
-        return new RegisterResponseDto(
-                "Registration completed successfully. Account activation pending. ",
-                users.getUserStatus().name(),
-                users.getEmail()
-        );
+        return buildRegisterResponse(savedUser);
     }
+
 
     @Transactional
     public void savedUserToken(Users user, String jwt, JwtTokenType jwtTokenType) {
@@ -148,118 +129,41 @@ public class AuthServiceImpl implements AuthService{
         tokenRepository.save(token);
     }
 
+
     @Transactional
     @Override
     public AuthResponse login(AuthRequest request, String ipAddress) {
-        String normalizedEmail = request.getEmail().trim().toLowerCase();
 
-        Users user = usersRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new BusinessException("Invalid credentials"));
+        String normalizedEmail = normalizeEmail(request.getEmail());
+        String normalizedIp = validateAndNormalizeIp(ipAddress);
 
-        if (user.isAccountLocked()) {
-            if (user.getLockTime() != null &&
-                    Duration.between(user.getLockTime(), LocalDateTime.now()).toMinutes() < 15) {
+        Users user = getUserByEmailOrThrow(normalizedEmail);
 
-                auditLogService.registerEvent(
-                        user.getId(),
-                        "Blocked login attempt from IP: " + ipAddress,
-                        "LOGIN_BLOCKED",
-                        "AUTH"
-                );
-                log.warn("Blocked login attempt. userId={}, ip={}", user.getId(), ipAddress);
+        validateAccountLockStatus(user,normalizedIp);
+        validateUserIsActive(user,normalizedIp);
 
-                throw new BusinessException("Authentication failed");
-            } else {
-                user.setAccountLocked(false);
-                user.setFailedLoginAttempts(0);
-                user.setLockTime(null);
-                usersRepository.save(user);
+        Authentication auth = authenticateUser(normalizedEmail,request.getPassword(), user, normalizedIp);
 
-                log.info("User account unlocked after lock period elapsed. userId={}", user.getId());
-            }
-        }
-        if (user.getUserStatus() != UserStatus.ACTIVE) {
-            auditLogService.registerEvent(
-                    user.getId(),
-                    "Login denied due to user status: " + user.getUserStatus() + "from IP: " + ipAddress,
-                    "LOGIN_DENIED",
-                    "AUTH"
-            );
-            log.warn("Login denied due to inactive status. userId={}, status={}, ip={}",
-                    user.getId(), user.getUserStatus(), ipAddress);
-            throw new BusinessException("Authentication failed");
-        }
+        validateIpIsNotSuspicious(user,normalizedIp);
 
-        Authentication auth;
-        try {
-            auth = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(normalizedEmail, request.getPassword())
-            );
-        } catch (BadCredentialsException e) {
-            int attempts = user.getFailedLoginAttempts() + 1;
-            log.warn("Failed login attempt. userId={}, attempts={}, ip={}",
-                    user.getId(), attempts, ipAddress);
-            user.setFailedLoginAttempts(attempts);
+        resetFailedLoginAttempts(user);
+        registerLoginIp(user,normalizedIp);
 
-            if (attempts >= 3) {
-                user.setAccountLocked(true);
-                user.setLockTime(LocalDateTime.now());
-            }
+        UserDetails userDetails = (UserDetails) auth.getPrincipal();
 
-            usersRepository.save(user);
+        AuthTokens tokens = generateAndPersistTokens(user, userDetails);
 
-            auditLogService.registerEvent(
-                    user.getId(),
-                    "Failed login attempt from IP: " + ipAddress,
-                    "LOGIN_FAILED",
-                    "AUTH"
-            );
+        registerSuccessfulLogin(user,normalizedIp);
 
-            throw new BusinessException("Invalid credentials");
-        }
-
-        user.setFailedLoginAttempts(0);
-        usersRepository.save(user);
-
-        boolean isSuspicious = ipAddressService.isSuspicious(ipAddress);
-        if (isSuspicious) {
-            auditLogService.registerEvent(
-                    user.getId(),
-                    "Login attempt from suspicious IP: " + ipAddress,
-                    "LOGIN_BLOCKED",
-                    "AUTH"
-            );
-            log.warn("Login blocked due to suspicious IP. userId={}, ip={}",
-                    user.getId(), ipAddress);
-
-            throw new BusinessException("Authentication failed");
-        }
-
-        IPAddressRequestDto dto = new IPAddressRequestDto();
-        dto.setId(String.valueOf(user.getId()));
-        dto.setDirectionIP(ipAddress);
-        ipAddressService.registerIP(dto);
-
-        UserDetails ud = (UserDetails) auth.getPrincipal();
-        String accessToken = jwtService.generateToken(ud);
-        String refreshToken = jwtService.generateRefreshToken(user);
-
-        revokeAllUserTokens(user.getId());
-        savedUserToken(user, accessToken, JwtTokenType.ACCESS);
-        savedUserToken(user, refreshToken, JwtTokenType.REFRESH);
-
-        String location = geoLocationService.getLocationFromIP(ipAddress);
-        auditLogService.registerEvent(
-                user.getId(),
-                "Successful login from IP: " + ipAddress + " (" + location + ")",
-                "LOGIN_SUCCESS",
-                "AUTH"
+        return new AuthResponse(
+                tokens.accessToken(),
+                tokens.refreshToken(),
+                "Bearer",
+                accessExpirationMs / 1000
         );
-
-        log.info("Successful login. userId={}, ip={}", user.getId(), ipAddress);
-
-        return new AuthResponse(accessToken, refreshToken, "Bearer", accessExpirationMs / 1000);
     }
+
+
 
     @Transactional
     @Override
@@ -337,6 +241,7 @@ public class AuthServiceImpl implements AuthService{
         return new AuthResponse(newAccessToken, newRefreshToken, "Bearer", expiresInSeconds);
     }
 
+
     @Transactional
     @Override
     public void logout(String bearerToken) {
@@ -352,20 +257,20 @@ public class AuthServiceImpl implements AuthService{
 
         storedToken.ifPresent(t -> auditLogService.registerEvent(
                 t.getUser().getId(),
-                "Logout completed succcessfully",
+                "Logout completed successfully",
                 "LOGOUT_SUCCESS",
                 "AUTH"
         ));
         log.info("Logout completed successfully");
     }
 
+
     @Transactional
     @Override
     public void changePassword(ChangePasswordRequest request, String userEmail, String ipAddress) {
-        String normalizedEmail= userEmail.trim().toLowerCase();
+        String normalizedEmail= normalizeEmail(normalizeEmail(userEmail));
 
-        Users user = usersRepository.findByEmail(normalizedEmail)
-                .orElseThrow(()-> new BusinessException("Authentication failed"));
+        Users user = getUserByEmailOrThrow(normalizedEmail);
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
             log.warn("Password change failed due to invalid current password. userId={}, ip={}",
@@ -403,6 +308,7 @@ public class AuthServiceImpl implements AuthService{
         log.info("Password changed successfully. userId={}, ip={}", user.getId(), ipAddress);
     }
 
+
     @Transactional
     private Optional<Token>logoutRawToken(String token){
        return tokenRepository.findByToken(token).map(t -> {
@@ -420,21 +326,23 @@ public class AuthServiceImpl implements AuthService{
 
         }
 
-        @Transactional
-        public void revokeToken(String rawToken){
-            tokenRepository.findByToken(rawToken).ifPresent(t -> {
-                t.setRevoked(true);
-                t.setExpired(true);
-                tokenRepository.save(t);
-            });
+    @Transactional
+    public void revokeToken(String rawToken){
+        tokenRepository.findByToken(rawToken).ifPresent(t -> {
+            t.setRevoked(true);
+            t.setExpired(true);
+            tokenRepository.save(t);
+        });
 
-        }
-        @Transactional
-        public void revokeAllUserTokensByType(Long userId, JwtTokenType jwtTokenType) {
-         var tokens = tokenRepository.findByUser_IdAndJwtTokenTypeAndExpiredFalseAndRevokedFalse(userId, jwtTokenType);
-         tokens.forEach(t -> { t.setExpired(true); t.setRevoked(true);});
-         tokenRepository.saveAll(tokens);
-        }
+    }
+
+
+    @Transactional
+    public void revokeAllUserTokensByType(Long userId, JwtTokenType jwtTokenType) {
+        var tokens = tokenRepository.findByUser_IdAndJwtTokenTypeAndExpiredFalseAndRevokedFalse(userId, jwtTokenType);
+        tokens.forEach(t -> { t.setExpired(true); t.setRevoked(true);});
+        tokenRepository.saveAll(tokens);
+    }
 
     private RegisterResponseDto replayResponse(IdempotencyRecord record) {
         try {
@@ -442,5 +350,224 @@ public class AuthServiceImpl implements AuthService{
         } catch (Exception e) {
             throw new BusinessException("Couldn't replay idempotent create user response");
         }
+    }
+
+    private String normalizeEmail(String email) {
+        if (email == null || email.isBlank()) {
+            throw new BusinessException("Invalid credentials");
+        }
+        return email.trim().toLowerCase();
+    }
+
+    private String validateAndNormalizeIp(String ipAddress) {
+        if (ipAddress == null || ipAddress.isBlank()) {
+            throw new BusinessException("IP address is required");
+        }
+
+        return ipAddress.trim();
+    }
+
+    private Users getUserByEmailOrThrow(String email) {
+        return usersRepository.findByEmail(email)
+                .orElseThrow(()-> new BusinessException("Invalid credentials"));
+    }
+
+    private void validateAccountLockStatus(Users user, String ipAddress) {
+        if (!user.isAccountLocked()) {
+            return;
+        }
+        if (isLockPeriodActive(user)) {
+            auditLogService.registerEvent(
+                    user.getId(),
+                    "Blocked login attempt from IP: 129 ** ***",
+                    "LOGIN_BLOCKED",
+                    "AUTH"
+            );
+
+            log.warn("[LOGIN_BLOCKED] userId={} ip={}", user.getId(), ipAddress);
+
+            throw new BusinessException("Authentication failed");
+        }
+        unlockUserAccount(user);
+    }
+
+    private boolean isLockPeriodActive(Users user) {
+        return user.getLockTime() != null &&
+                Duration.between(user.getLockTime(), LocalDateTime.now()).toMinutes() < 15;
+    }
+
+    private void unlockUserAccount(Users user) {
+        user.setAccountLocked(false);
+        user.setFailedLoginAttempts(0);
+        user.setLockTime(null);
+
+        usersRepository.save(user);
+
+        log.info("[LOGIN_ACCOUNT_UNLOCKED] userId={}", user.getId());
+    }
+
+    private void validateUserIsActive(Users user, String ipAddress) {
+        if (user.getUserStatus() == UserStatus.ACTIVE) {
+            return;
+        }
+
+        auditLogService.registerEvent(
+                user.getId(),
+                "Login denied due to user status: " + user.getUserStatus()
+                + " from IP: 129 **** ",
+                "LOGIN_DENIED",
+                "AUTH"
+        );
+
+        log.warn("[LOGIN_DENIED] reason=inactive_status userId={} status={} ip={}",
+                user.getId(), user.getUserStatus(), ipAddress);
+
+        throw new BusinessException("Authentication failed");
+    }
+
+    private Authentication authenticateUser(
+            String normalizedEmail,
+            String password,
+            Users user,
+            String ipAddress
+    ) {
+        try {
+            return authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(normalizedEmail,password)
+            );
+        }catch (BadCredentialsException e) {
+            handleFailedLoginAttempt(user,ipAddress);
+            throw new BusinessException("Invalid credentials");
+        }
+    }
+
+    private void handleFailedLoginAttempt(Users user, String ipAddress) {
+        int attempts = user.getFailedLoginAttempts() + 1;
+
+        user.setFailedLoginAttempts(attempts);
+
+        if (attempts >= user.getFailedLoginAttempts()) {
+            user.setAccountLocked(true);
+            user.setLockTime(LocalDateTime.now());
+        }
+
+        usersRepository.save(user);
+
+        auditLogService.registerEvent(
+                user.getId(),
+                "Failed login attempt from IP: 129 ***",
+                "LOGIN_FAILED",
+                "AUTH"
+        );
+
+        log.warn("[LOGIN_FAILED] userId={} attempts={} ip={}",
+                user.getId(), attempts, ipAddress);
+    }
+
+    private void validateIpIsNotSuspicious(Users user, String ipAddress) {
+        boolean suspicious = ipAddressService.isSuspicious(ipAddress);
+
+        if (!suspicious) {
+            return;
+        }
+
+        auditLogService.registerEvent(
+                user.getId(),
+                "Login attempt from suspicious IP: " + ipAddress,
+                "LOGIN_BLOCKED",
+                "AUTH"
+        );
+
+        log.warn("[LOGIN_BLOCKED] reason= suspicious_ip userId={} ip={}",
+                user.getId(), ipAddress);
+
+        throw new BusinessException("Authentication failed");
+    }
+
+    private void resetFailedLoginAttempts(Users user) {
+        if (user.getFailedLoginAttempts() == 0 && !user.isAccountLocked()) {
+            return;
+        }
+
+        user.setFailedLoginAttempts(0);
+        user.setAccountLocked(false);
+        user.setLockTime(null);
+
+        usersRepository.save(user);
+    }
+
+    private void registerLoginIp(Users user, String ipAddress) {
+        IPAddressRequestDto dto = new IPAddressRequestDto();
+        dto.setUserId(user.getId());
+        dto.setIpAddress(ipAddress);
+
+        ipAddressService.registerIP(dto);
+    }
+
+
+    private void registerSuccessfulLogin(Users user, String ipAddress) {
+        String location = geoLocationService.getLocationFromIP(ipAddress);
+
+        auditLogService.registerEvent(
+                user.getId(),
+                "Successful login from IP: " + ipAddress + " (" + location + ")",
+                "LOGIN_SUCCESS",
+                "AUTH"
+        );
+
+        log.info("[LOGIN_SUCCESS] userId={} ip={}", user.getId(), ipAddress);
+    }
+
+    private AuthTokens generateAndPersistTokens(Users user, UserDetails userDetails){
+        String accessToken = jwtService.generateToken(userDetails);
+        String refreshToken = jwtService.generateRefreshToken(user);
+
+        revokeAllUserTokens(user.getId());
+        savedUserToken(user, accessToken, JwtTokenType.ACCESS);
+        savedUserToken(user, refreshToken, JwtTokenType.REFRESH);
+
+        return new AuthTokens(accessToken, refreshToken);
+    }
+
+    private void validateEmailIsAvailable(String normalizedEmail) {
+        if (usersRepository.existsByEmail(normalizedEmail)) {
+            throw new
+                    BusinessException("Registration failed");
+        }
+    }
+
+    private Users buildPendingClientUser(RegisterRequestDto request, String normalizedEmail) {
+        Users user = new Users();
+
+        user.setName(request.getName().trim());
+        user.setSurname(request.getSurname().trim());
+        user.setEmail(normalizedEmail);
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setDni(request.getDni().trim());
+        user.setRegistrationDate(LocalDateTime.now());
+        user.setRol(Rol.CLIENT);
+        user.setUserStatus(UserStatus.PENDING_ACTIVATION);
+        user.setFailedLoginAttempts(0);
+        user.setAccountLocked(false);
+        user.setLockTime(null);
+
+        return user;
+    }
+
+    private void registerSuccessfulRegistrationAudit(Users user) {
+        auditLogService.registerEvent(
+                user.getId(),
+                "User registered successfully with status " + user.getUserStatus(),
+                "REGISTER_SUCCESS",
+                "AUTH"
+        );
+    }
+
+    private RegisterResponseDto buildRegisterResponse(Users user) {
+        return new RegisterResponseDto(
+                "Registration completed successfully. Account activation pending",
+                user.getUserStatus().name(),
+                user.getEmail()
+        );
     }
 }

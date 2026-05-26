@@ -10,6 +10,7 @@ import com.home_banking_.model.Users;
 import com.home_banking_.repository.NotificationRepository;
 import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.NotificationService;
+import com.home_banking_.service.security.CurrentUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,11 +27,13 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
     private final UsersRepository usersRepository;
     private final NotificationMapper notificationMapper;
+    private final CurrentUserService currentUserService;
 
-    public NotificationServiceImpl(NotificationRepository notificationRepository, UsersRepository usersRepository, NotificationMapper notificationMapper) {
+    public NotificationServiceImpl(NotificationRepository notificationRepository, UsersRepository usersRepository, NotificationMapper notificationMapper, CurrentUserService currentUserService) {
         this.notificationRepository = notificationRepository;
         this.usersRepository = usersRepository;
         this.notificationMapper = notificationMapper;
+        this.currentUserService = currentUserService;
     }
 
 

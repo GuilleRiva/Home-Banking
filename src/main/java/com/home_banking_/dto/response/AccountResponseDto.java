@@ -27,6 +27,7 @@ public class AccountResponseDto {
     @Schema(description = "Alias of the account", example = "mi.cuenta.ahorro")
     private String alias;
 
+
     @Schema(implementation = StatusAccount.class)
     private StatusAccount statusAccount;
 

@@ -1,10 +1,10 @@
 package com.home_banking_.controllers;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.home_banking_.dto.request.*;
 import com.home_banking_.dto.response.TransactionResponseDto;
 import com.home_banking_.service.TransactionService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -31,31 +31,8 @@ import java.util.List;
 public class TransactionController {
 
     private final TransactionService transactionService;
+    private static final String IDEMPOTENCY_KEY_HEADER = "Idempotency_Key";
 
-    //--------------------------------
-    // Customer endpoints (JWT user)
-    // ------------------------------
-
-    @Operation(
-            summary = "Get my transactions",
-            description = "Returns all transactions for the authenticated user."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Transactions retrieved successfully",
-                    content = @Content(mediaType = "application/json",
-                            array = @ArraySchema(schema = @Schema(implementation = TransactionResponseDto.class)))),
-            @ApiResponse(responseCode = "401", description = "Unauthorized"),
-            @ApiResponse(responseCode = "403", description = "Forbidden")
-    })
-    @GetMapping("/me")
-    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED', 'CLIENT')")
-    public ResponseEntity<List<TransactionResponseDto>>getMyTransactions(){
-        return ResponseEntity.ok(transactionService.getMyTransactions());
-    }
-
-    // ----------------------------------
-    // Operations (create tx)
-    // ---------------------------------
 
     @Operation(
             summary = "Make a transfer between accounts",
@@ -71,10 +48,10 @@ public class TransactionController {
             @ApiResponse(responseCode = "404", description = "Account not found")
     })
     @PostMapping("/transfer")
-    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN', 'EMPLOYED')")
+    @PreAuthorize("hasAnyRole('CLIENT')")
     public ResponseEntity<TransactionResponseDto> makeTransfer(
-            @RequestHeader("Idempotency-Key") String idempotencyKey,
-            @Valid @RequestBody TransactionRequestDto dto){
+            @RequestHeader(IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
+            @Valid @RequestBody TransactionRequestDto dto)  {
 
         TransactionResponseDto response = transactionService.makeTransfer(idempotencyKey, dto);
         return ResponseEntity.ok(response);
@@ -96,9 +73,9 @@ public class TransactionController {
 
     })
     @PostMapping("/customer-deposit")
-    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN' , 'EMPLOYED')")
+    @PreAuthorize("hasAnyRole('CLIENT')")
     public ResponseEntity<TransactionResponseDto> makeCustomerDeposit(
-            @RequestHeader("Idempotency-key") String idempotencyKey,
+            @RequestHeader(IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @Valid @RequestBody CustomerDepositRequestDto dto){
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(transactionService.makeCustomerDeposit(idempotencyKey, dto));
@@ -120,7 +97,7 @@ public class TransactionController {
     @PostMapping("/admin-credit")
     @PreAuthorize("hasAnyRole('ADMIN')")
     public ResponseEntity<TransactionResponseDto> makeAdministrativeCredit(
-            @RequestHeader("Idempotency-key") String idempotencyKey,
+            @RequestHeader(IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @Valid @RequestBody AdministrativeCreditRequestDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(transactionService.makeAdministrativeCredit(idempotencyKey, dto));
@@ -128,23 +105,38 @@ public class TransactionController {
 
 
     @PostMapping("/withdraw")
-    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN', 'EMPLOYED')")
+    @PreAuthorize("hasAnyRole('CLIENT')")
     public ResponseEntity<TransactionResponseDto> makeWithdraw(
-            @RequestHeader("Idempotency-key") String idempotencyKey,
+            @RequestHeader(IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @Valid @RequestBody WithDrawRequestDto dto
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(transactionService.makeWithdraw(idempotencyKey, dto));
     }
 
-    //-----------------------------
-    // Admin/ Backoffice endpoints
-    //------------------------------
+
+    @Operation(
+            summary = "Get my transactions",
+            description = "Returns all transactions for the authenticated user."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Transactions retrieved successfully",
+                    content = @Content(mediaType = "application/json",
+                            array = @ArraySchema(schema = @Schema(implementation = TransactionResponseDto.class)))),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden")
+    })
+    @GetMapping("/me")
+    @PreAuthorize("hasAnyRole('CLIENT')")
+    public ResponseEntity<List<TransactionResponseDto>>getMyTransactions(){
+        return ResponseEntity.ok(transactionService.getMyTransactions());
+    }
+
 
     @Operation(summary = "Get transactions by account ID (admin)",
     description = "Returns transactions for a given account. Admin/backoffice usage.")
     @GetMapping("/accounts/{accountId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYED')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYED', 'AUDITOR')")
     public ResponseEntity<List<TransactionResponseDto>> getTransactionsByAccount(@PathVariable Long accountId) {
         return ResponseEntity.ok(transactionService.getTransactionsByAccount(accountId));
     }
@@ -153,7 +145,7 @@ public class TransactionController {
     @Operation(summary = "Get transaction by user ID (admin)",
     description = "Returns transactions for a given user. Admin/backoffice usage.")
     @GetMapping("/users/{userId}")
-    @PreAuthorize("hasAnyRole('ADMIN','EMPLOYED')")
+    @PreAuthorize("hasAnyRole('ADMIN','EMPLOYED','AUDITOR')")
     public ResponseEntity<List<TransactionResponseDto>> getTransactionByUser(@PathVariable Long userId) {
         return ResponseEntity.ok(transactionService.getTransactionsByUser(userId));
     }

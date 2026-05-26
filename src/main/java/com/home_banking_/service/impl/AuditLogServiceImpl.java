@@ -3,8 +3,6 @@ package com.home_banking_.service.impl;
 import com.home_banking_.dto.response.AuditLogResponseDto;
 import com.home_banking_.enums.AuditType;
 import com.home_banking_.enums.PaymentAuditAction;
-import com.home_banking_.enums.StatusTransaction;
-import com.home_banking_.enums.TypeNotification;
 import com.home_banking_.exceptions.BusinessException;
 import com.home_banking_.exceptions.ResourceNotFoundException;
 import com.home_banking_.mappers.AuditLogMapper;
@@ -37,7 +35,8 @@ public class AuditLogServiceImpl implements AuditLogService {
 
     @Override
     public void registerEvent(Long userId, String message, String typeEvent, String type) {
-        log.info("Logging audit event for user ID: {} | Action: {} | Type: {}", userId,typeEvent, type);
+        log.info("[LOGGING_REGISTER_EVENT] audit event for userId={} ,TypeEvent={}, Type={}",
+                userId,typeEvent, type);
 
         Users users = usersRepository.findById(userId)
                 .orElseThrow(()->  new ResourceNotFoundException(
@@ -48,7 +47,7 @@ public class AuditLogServiceImpl implements AuditLogService {
         try {
             auditType = AuditType.valueOf(type.toUpperCase());
         }catch (IllegalArgumentException e){
-            log.error("Invalid audit type received: {}", type);
+            log.error("[LOG_ERROR_EVENT] Invalid audit type received: {}", type);
             throw new BusinessException("Invalid audit type : " + type);
         }
 
@@ -57,11 +56,11 @@ public class AuditLogServiceImpl implements AuditLogService {
         logEntity.setAction(typeEvent);
         logEntity.setDescription(message);
         logEntity.setDateTime(LocalDateTime.now());
-        logEntity.setIpOrigin("127.0.0.1");//Puedo luego obtener esto desde el request HTTP
+        logEntity.setIpOrigin("127.0.0.1");
         logEntity.setType(auditType);
 
         auditLogRepository.save(logEntity);
-        log.info("Audit event successfully logged for user ID: {}", userId);
+        log.info("[AUDIT_REGISTERED_EVENT] event successfully logged for userId={}", userId);
     }
 
     @Override
@@ -82,7 +81,7 @@ public class AuditLogServiceImpl implements AuditLogService {
         try {
             auditType = AuditType.valueOf(type.toUpperCase());
         } catch (IllegalArgumentException e) {
-            log.error("Invalid audit type when Fetching logs: {}", type);
+            log.error("[INVALID_LOG_EVENT] Invalid audit type when Fetching logs: {}", type);
             throw new BusinessException("Invalid audit type: " + type);
         }
 

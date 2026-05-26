@@ -29,8 +29,6 @@ public class CardController {
 
     private final CardService cardService;
 
-
-
     @Operation(
             summary = "Retrieve cards by account ID",
             description = "Returns a list cards associated with the specified bank account."
@@ -53,8 +51,6 @@ public class CardController {
     }
 
 
-
-
     @Operation(
             summary = "Create a new card",
             description = "Creates a new card and returns its data. The card is associated with a specific account."
@@ -66,7 +62,7 @@ public class CardController {
             @ApiResponse(responseCode = "400", description = "Invalid request data")
     })
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
     public ResponseEntity<CardResponseDto> createCard(
             @RequestBody Long accountId, TypeCard typeCard, String mark){
         log.info("POST /api/cards - Creating card  for ID account: {} | Type: {} | Mark: {}",
@@ -79,32 +75,7 @@ public class CardController {
 
     }
 
-
-
-
-    @Operation(
-            summary = "Delete a card",
-            description = "Deletes a card permanently based on the provided card ID."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "Card deleted successfully"),
-            @ApiResponse(responseCode = "404", description = "Card not found")
-    })
-    @DeleteMapping("/{cardId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteCard(
-            @Parameter(name = "cardId", description = "Unique identifier of the card", required = true)
-            @PathVariable Long cardId){
-
-        log.info("DELETE /api/cards/{} - Deleting card", cardId);
-
-        cardService.deleteCard(cardId);
-
-        log.info("Card successfully removed. ID: {}", cardId);
-        return ResponseEntity.noContent().build();
-    }
-
-
+    
 
     @Operation(
             summary = "Cancel a card",

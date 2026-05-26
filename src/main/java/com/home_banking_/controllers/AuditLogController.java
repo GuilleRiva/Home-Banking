@@ -41,7 +41,7 @@ public class AuditLogController {
             @ApiResponse(responseCode = "400", description = "Invalid request")
     })
     @PostMapping("/register")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('AUDITOR')")
     public ResponseEntity<Void> registerAuditLog(@RequestBody @Valid AuditLogResponseDto dto){
         log.info("POST /api/audit/register - Logging audit event for userId: {} | Type: {} | Action: {}",
                 dto.getId(), dto.getType(), dto.getAction());
@@ -64,7 +64,7 @@ public class AuditLogController {
             @ApiResponse(responseCode = "404", description = "logs by user not found")
     })
     @GetMapping("/user/{userId}")
-    @PreAuthorize("hasAnyRole( 'ADMIN', 'AUDITOR')")
+    @PreAuthorize("hasRole('AUDITOR')")
     public ResponseEntity<List<AuditLogResponseDto>> getLogsByUser(
             @Parameter(name = "userId", description = "unique identifier of the user", required = true)
             @PathVariable Long userId){
@@ -89,7 +89,7 @@ public class AuditLogController {
             @ApiResponse(responseCode = "404", description = "logs by type not found")
     })
     @GetMapping("/type/{type}")
-    @PreAuthorize("hasAnyRole( 'ADMIN', 'AUDITOR')")
+    @PreAuthorize("hasRole('AUDITOR')")
     public ResponseEntity<List<AuditLogResponseDto>> getLogsByType(
             @Parameter(name = "type", description = "Type of logs", required = true)
             @PathVariable String type){

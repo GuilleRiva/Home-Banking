@@ -1,5 +1,7 @@
 package com.home_banking_.service.idempotency;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.home_banking_.enums.IdempotencyOperation;
 import com.home_banking_.enums.IdempotencyStatus;
 import com.home_banking_.exceptions.IdempotencyConflictException;
@@ -9,11 +11,13 @@ import com.home_banking_.model.Users;
 import com.home_banking_.repository.IdempotencyRecordRepository;
 import com.home_banking_.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
-import org.apache.catalina.User;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +28,7 @@ public class IdempotencyServiceImpl implements IdempotencyService{
     private final IdempotencyRecordRepository idempotencyRecordRepository;
     private final UsersRepository usersRepository;
     private final RequestHashService requestHashService;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -86,6 +91,7 @@ public class IdempotencyServiceImpl implements IdempotencyService{
         return IdempotencyValidationResult.newRequest(savedRecord);
     }
 
+
     @Override
     @Transactional
     public void markAsCompleted(Long recordId, int responseStatusCode, String responseBody, Long resourceId) {
@@ -109,6 +115,47 @@ public class IdempotencyServiceImpl implements IdempotencyService{
 
         idempotencyRecordRepository.save(record);
     }
+
+
+    @Override
+    public <T> T executeAndComplete(
+            IdempotencyRecord record,
+            Supplier<T> operation,
+            Function<T, Long> resourceIdExtractor,
+            HttpStatus status,
+            String fallbackErrorMessage
+    ) {
+        try {
+            T response = operation.get();
+
+            String responseBody = objectMapper.writeValueAsString(response);
+
+            markAsCompleted(
+                    record.getId(),
+                    status.value(),
+                    responseBody,
+                    resourceIdExtractor.apply(response)
+            );
+
+            return response;
+
+        } catch (JsonProcessingException ex) {
+
+            markAsFailed(record.getId(), "Error serializing idempotent response");
+
+            throw new RuntimeException("Could not complete idempotent operation");
+
+        } catch (RuntimeException ex) {
+            String errorMessage = ex.getMessage() != null
+                    ? ex.getMessage()
+                    : fallbackErrorMessage;
+
+            markAsFailed(record.getId(), errorMessage);
+
+            throw ex;
+        }
+    }
+
 
     private void validateKey(String idempotencyKey) {
         if (idempotencyKey == null || idempotencyKey.isBlank()) {

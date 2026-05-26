@@ -31,6 +31,7 @@ import java.util.List;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private static final String IDEMPOTENCY_KEY_HEADER= "Idempotency_Key";
 
 
     @Operation(
@@ -44,7 +45,7 @@ public class PaymentController {
             @ApiResponse(responseCode = "404", description = "Account not found or no payments available")
     })
     @GetMapping("/account/{accountId}")
-    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED')")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED', 'AUDITOR')")
     public ResponseEntity<List<PaymentResponseDto>>getPaymentByAccount(
             @Parameter(name = "accountId", description = "Unique identifier of the account", required = true)
             @PathVariable Long accountId){
@@ -58,7 +59,6 @@ public class PaymentController {
     }
 
 
-
     @Operation(
             summary = "Get payments by service entity",
             description = "Retrieves a list of payments filtered by the specified service entity(e.g., INTERNET, GAS, WATER)."
@@ -70,6 +70,7 @@ public class PaymentController {
             @ApiResponse(responseCode = "404", description = "No payments found for the given service entity")
     })
     @GetMapping("/entity/{entity}")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED', 'AUDITOR')")
     public ResponseEntity<List<PaymentResponseDto>> getPaymentByEntity(
             @Parameter(name = "entity", description = "Service entity to filter payments by", required = true,
                     schema = @Schema(implementation = ServiceEntity.class, example = "INTERNET"))
@@ -82,7 +83,6 @@ public class PaymentController {
 
         return ResponseEntity.ok(serviceEntities);
     }
-
 
 
     @Operation(
@@ -98,7 +98,7 @@ public class PaymentController {
     @PostMapping
     @PreAuthorize("hasAnyRole('CLIENT')")
     public ResponseEntity<PaymentResponseDto> makePayment(
-            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestHeader(IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @Valid @RequestBody PaymentRequestDto dto){
         log.info("POST /api/payments - Processing payment for account ID: {}, entity: {}",
                 dto.getAccountId(), dto.getServiceEntity());
@@ -111,9 +111,9 @@ public class PaymentController {
 
 
     @PostMapping("/services")
-    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CLIENT')")
     public ResponseEntity<PaymentResponseDto> payService(
-            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestHeader(IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @Valid @RequestBody ServicePaymentRequestDto dto
             ) {
         log.info("[PAYMENT_SERVICE_REQUEST] accountId={} serviceEntity={}",

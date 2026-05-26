@@ -24,6 +24,7 @@ public class Account {
     private BigDecimal balance;
     private String CBU;
     private LocalDateTime creationDate;
+    private String maskAlias;
 
     @Enumerated(EnumType.STRING)
     private TypeAccount typeAccount;

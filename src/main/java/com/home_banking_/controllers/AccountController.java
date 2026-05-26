@@ -2,7 +2,6 @@ package com.home_banking_.controllers;
 
 import com.home_banking_.dto.request.AccountCreateRequestDto;
 import com.home_banking_.dto.response.AccountResponseDto;
-import com.home_banking_.dto.response.UserResponseDto;
 import com.home_banking_.service.AccountService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,6 +29,7 @@ import java.util.List;
 public class AccountController {
 
     private final AccountService accountService;
+    private static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
 
     @Operation(
             summary = "Retrieve all accounts",
@@ -42,7 +42,7 @@ public class AccountController {
             schema = @Schema(implementation = AccountResponseDto.class)))
     @ApiResponse(responseCode = "404", description = "Accounts not found")
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED', 'AUDITOR')")
     public ResponseEntity<List<AccountResponseDto>> getAll(){
         log.info("GET /api/accounts - Consult all registered accounts");
 
@@ -64,7 +64,7 @@ public class AccountController {
             @ApiResponse(responseCode = "404", description = "User not found")
     })
     @GetMapping("/{accountId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED', 'AUDITOR')")
     public ResponseEntity<AccountResponseDto>getById(
             @Parameter(name = "accountId", description = "Unique identifier of the account", required = true)
             @PathVariable Long accountId){
@@ -90,6 +90,7 @@ public class AccountController {
 
     })
     @GetMapping("/{accountId}/balance")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED', 'AUDITOR')")
     public ResponseEntity<BigDecimal> getAccountBalance(
             @Parameter(name = "accountId",description = "Unique identifier of the account", required = true)
             @PathVariable Long accountId){
@@ -99,6 +100,30 @@ public class AccountController {
         log.info("Balance successfully obtained for account ID: {}", accountId);
       return ResponseEntity.ok(balance);
 
+    }
+
+
+    @Operation(
+            summary = "Get account by alias",
+            description = "Search for accounts by an alias"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Accounts found",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = AccountResponseDto.class))),
+            @ApiResponse(responseCode = "404", description = "The accounts were not found")
+    })
+    @GetMapping("/alias/{alias}")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED', 'AUDITOR')")
+    public ResponseEntity<AccountResponseDto> getAccountByAlias(
+            @Parameter(name = "alias", description = "account identifier name", required = true)
+            @PathVariable String alias){
+
+        log.info("GET /api/accounts/alias/{} - Querying account ", alias);
+        AccountResponseDto account = accountService.getAccountByAlias(alias);
+        log.info("Account found with alias: {}", alias);
+
+        return ResponseEntity.ok(account);
     }
 
 
@@ -114,7 +139,7 @@ public class AccountController {
     })
     @PostMapping
     public ResponseEntity<AccountResponseDto>createAccount(
-            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestHeader(IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @RequestBody @Valid AccountCreateRequestDto dto){
         log.info("POST /api/accounts - Creating account with alias={} and accountType={}",
                 dto.getAlias(), dto.getTypeAccount());
@@ -125,29 +150,6 @@ public class AccountController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-
-    @Operation(
-            summary = "Get account by alias",
-            description = "Search for accounts by an alias"
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Accounts found",
-            content = @Content(mediaType = "application/json",
-            schema = @Schema(implementation = AccountResponseDto.class))),
-            @ApiResponse(responseCode = "404", description = "The accounts were not found")
-    })
-    @GetMapping("/alias/{alias}")
-    @PreAuthorize("hasRole('ADMIN') or hasRol('EMPLOYED')")
-    public ResponseEntity<AccountResponseDto> getAccountByAlias(
-            @Parameter(name = "alias", description = "account identifier name", required = true)
-            @PathVariable String alias){
-
-        log.info("GET /api/accounts/alias/{} - Querying account ", alias);
-        AccountResponseDto account = accountService.getAccountByAlias(alias);
-        log.info("Account found with alias: {}", alias);
-
-        return ResponseEntity.ok(account);
-    }
 
 
     @Operation(

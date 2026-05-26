@@ -16,6 +16,5 @@ public interface IPAddressService {
 
     List<IPAddressResponseDto> getIPsByUser(Long userId);
 
-    void deleteIP(Long ipId);
 
 }

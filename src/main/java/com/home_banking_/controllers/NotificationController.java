@@ -30,7 +30,6 @@ public class NotificationController {
 
     private final NotificationService notificationService;
 
-
     @Operation(
             summary = "Create a new notification",
             description = "Creates and stores a new notification in the system"
@@ -53,7 +52,6 @@ public class NotificationController {
     }
 
 
-
     @Operation(
             summary = "Get notifications by user.",
             description = "Returns a list notifications associated with the specified user account."
@@ -65,7 +63,7 @@ public class NotificationController {
             @ApiResponse(responseCode = "404", description = "No notifications found for the user")
     })
     @GetMapping("/user/{userId}")
-    @PreAuthorize("hasAnyRole('ADMIN' , 'AUDITOR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<NotificationResponseDto>> getNotificationByUser(
             @Parameter(name = "userId", description = "Unique identifier of the user.", required = true)
             @PathVariable Long userId){
@@ -104,8 +102,6 @@ public class NotificationController {
     }
 
 
-
-
     @Operation(
             summary = "Mark a notification as read",
             description = "Sets the notification status to 'READ' based on the provided notification ID."
@@ -128,8 +124,6 @@ public class NotificationController {
     }
 
 
-
-
     @Operation(
             summary = "Simulate notifications for user",
             description = "Creates and returns a list of simulated notifications for the specified user. Useful for testing or preview purpose."
@@ -150,8 +144,6 @@ public class NotificationController {
 
         return ResponseEntity.status(HttpStatus.CREATED).body(list);
     }
-
-
 
 
     @Operation(

@@ -7,14 +7,13 @@ import java.util.List;
 
 public interface TransactionService {
 
-    TransactionResponseDto makeTransfer (String idempotencyKey, TransactionRequestDto dto);
+    TransactionResponseDto makeTransfer (String idempotencyKey, TransactionRequestDto dto) ;
 
+    TransactionResponseDto makeWithdraw(String idempotencyKey, WithDrawRequestDto dto) ;
 
-    TransactionResponseDto makeWithdraw(String idempotencyKey, WithDrawRequestDto dto);
+    TransactionResponseDto makeCustomerDeposit(String idempotencyKey, CustomerDepositRequestDto dto) ;
 
-    TransactionResponseDto makeCustomerDeposit(String idempotencyKey, CustomerDepositRequestDto dto);
-
-    TransactionResponseDto makeAdministrativeCredit(String idempotencyKey, AdministrativeCreditRequestDto dto);
+    TransactionResponseDto makeAdministrativeCredit(String idempotencyKey, AdministrativeCreditRequestDto dto) ;
 
     List<TransactionResponseDto> getMyTransactions();
 

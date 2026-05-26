@@ -11,9 +11,9 @@ public interface LoanService {
 
     LoanResponseDto simulateLoans(LoanSimulationRequestDto dto);
 
-    LoanResponseDto grantLoan (String idempotencyKey, LoanGrantRequestDto dto);
+    LoanResponseDto grantLoan (String idempotencyKey, LoanGrantRequestDto dto) ;
 
-    LoanResponseDto requestLoan (String idempotencyKey, LoanGrantRequestDto dto);
+    LoanResponseDto requestLoan (String idempotencyKey, LoanGrantRequestDto dto) ;
 
     Optional<LoanResponseDto> getLoanByAccount(Long accountId);
 

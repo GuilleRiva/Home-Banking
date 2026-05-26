@@ -106,10 +106,6 @@ public class JwtService {
                 .getBody();
     }
 
-    public Object debugClaim(String token, String key) {
-        return extractAllClaims(token).get(key);
-    }
-
 
     public String generateRefreshToken (Users user){
         return createToken(Map.of(), user.getEmail(), refreshExpiration);

@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+
 @Slf4j
 @Tag(name= "Loan controller", description = "User Loan management")
 @RestController
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
 public class LoanController {
 
     private final LoanService loanService;
+    private static final String IDEMPOTENCY_KEY_HEADER = "Idempotency_Key";
 
 
     @Operation(
@@ -52,7 +54,6 @@ public class LoanController {
     }
 
 
-
     @Operation(
             summary = "Grant a loan",
             description = "Processes and approves a loan request based on the submitted data. Returns the loan " +
@@ -67,7 +68,7 @@ public class LoanController {
     @PostMapping("/grant")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<LoanResponseDto> grantLoan(
-            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestHeader(IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @Valid @RequestBody LoanGrantRequestDto dto){
 
         LoanResponseDto granted = loanService.grantLoan(idempotencyKey, dto);
@@ -80,7 +81,7 @@ public class LoanController {
     @PostMapping("/request")
     @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<LoanResponseDto> requestLoan(
-            @RequestHeader("Idempotency-Key") String idempotencyKey,
+            @RequestHeader(IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @Valid @RequestBody LoanGrantRequestDto dto
     ) {
         LoanResponseDto response = loanService.requestLoan(idempotencyKey,dto);
@@ -98,7 +99,7 @@ public class LoanController {
                             array = @ArraySchema(schema = @Schema(implementation = LoanResponseDto.class))))
     })
     @GetMapping("/account/{accountId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED','AUDITOR')")
     public ResponseEntity<LoanResponseDto> getLoanByAccount(
             @Parameter(name = "accountId", description = "ID of the account", required = true)
             @PathVariable Long accountId){

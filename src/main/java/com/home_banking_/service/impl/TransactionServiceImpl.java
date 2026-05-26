@@ -20,6 +20,7 @@ import com.home_banking_.service.idempotency.IdempotencyService;
 import com.home_banking_.service.idempotency.IdempotencyValidationResult;
 import com.home_banking_.service.security.CurrentUserService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,7 +56,7 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Transactional
     @Override
-    public TransactionResponseDto makeTransfer(String idempotencyKey, TransactionRequestDto dto) {
+    public TransactionResponseDto makeTransfer(String idempotencyKey, TransactionRequestDto dto)  {
         String email = currentUserService.getCurrentUserEmail();
         Long userId = currentUserService.getCurrentUserId();
 
@@ -76,98 +77,40 @@ public class TransactionServiceImpl implements TransactionService {
             throw new IdempotencyConflictException("This transfer request is already being processed");
         }
 
-        IdempotencyRecord record = validationResult.getRecord();
+        TransactionResponseDto response = idempotencyService.executeAndComplete(
+                validationResult.getRecord(),
+                () -> executeTransfer(dto,email,userId),
+                TransactionResponseDto::getId,
+                HttpStatus.CREATED,
+                "Unexpected error during transfer"
+        );
 
-        try {
-            TransactionResponseDto response = executeTransfer(dto, email,userId);
+        log.info("[TRANSFER_IDEMPOTENT_COMPLETED] userEmail={} transactionId={} recordId={}",
+                email, response.getId(), validationResult.getRecord());
 
-            String responseBody = serializeResponse(response);
-
-            idempotencyService.markAsCompleted(
-                    record.getId(),
-                    200,
-                    responseBody,
-                    response.getId()
-            );
-
-            return response;
-        }catch (Exception ex) {
-            String errorMessage = ex.getMessage() != null ? ex.getMessage() : "Unexpected error during transfer";
-            idempotencyService.markAsFailed(record.getId(), errorMessage);
-            throw ex;
-        }
+        return response;
     }
 
 
     private TransactionResponseDto executeTransfer(TransactionRequestDto dto, String email, Long userId) {
+
         log.info("[TRANSFER_INIT] userEmail={} originAccountId={} destinationAccountId={} amount={}",
                 email, dto.getOriginAccountId(), dto.getDestinationAccountId(), dto.getAmount());
 
-        if (dto.getOriginAccountId().equals(dto.getDestinationAccountId())) {
-            log.warn("[TRANSFER_REJECTED] Transfer between identical account is not allowed. userEmail={} accountId={}",
-                    email, dto.getOriginAccountId());
-
-            auditLogService.registerEvent(
-                    userId,
-                    "Transfer rejected: origin and destination accounts are the same. accountId=" + dto.getOriginAccountId(),
-                    "TRANSFER_REJECTED",
-                    "SECURITY"
-            );
-
-            throw new BusinessException("Origin and destination accounts must be different");
-        }
+        validateTransferRequest(dto,email,userId);
 
         BigDecimal amount = dto.getAmount();
-        validateAmount(amount);
 
-        Account origin = accountRepository.findByIdAndUsersEmailForUpdate(dto.getOriginAccountId(), email)
-                .orElseThrow(() -> {
-                    log.warn("[TRANSFER_REJECTED] Origin account not found or access denied. userEmail={} originAccountId={}",
-                            email, dto.getOriginAccountId());
-                    return new ResourceNotFoundException("Origin account not found");
-                });
+        Account origin = getOwnedAccountForUpdate(dto.getOriginAccountId(),email);
+        Account destination = getAccountForUpdate(dto.getDestinationAccountId());
 
-        Account destination = accountRepository.findByIdForUpdate(dto.getDestinationAccountId())
-                .orElseThrow(() -> {
-                    log.warn("[TRANSFER_REJECTED] Destination account not found. destinationAccountId={}",
-                            dto.getDestinationAccountId());
-                    return new ResourceNotFoundException("Destination account not found");
-                });
+        validateAccountsCanTransfer(origin,destination,amount,userId);
 
-        validateAccountActive(origin, "Origin", "TRANSFER", userId);
-        validateAccountActive(destination, "Destination", "TRANSFER", userId);
+        applyTransfer(origin,destination,amount);
+        
+        Transaction savedTx= saveTransferTransaction(origin,destination,amount);
 
-        if (origin.getBalance().compareTo(amount) < 0) {
-            log.warn("[TRANSFER_REJECTED] Insufficient balance. originAccountId={} balance={} requiredAmount={}",
-                    origin.getId(), origin.getBalance(), amount);
-
-            auditLogService.registerEvent(
-                    userId,
-                    "Transfer rejected due to insufficient balance. originAccountId=" + origin.getId()
-                            + ", destinationAccountId=" + destination.getId()
-                            + ", amount=" + amount,
-                    "TRANSFER_REJECTED",
-                    "SECURITY"
-            );
-
-            throw new BusinessException("Insufficient balance for transfer");
-        }
-
-        origin.setBalance(origin.getBalance().subtract(amount));
-        destination.setBalance(destination.getBalance().add(amount));
-
-        Transaction tx = buildTransferTransaction(origin, destination, amount);
-        Transaction savedTx = transactionRepository.save(tx);
-
-        auditLogService.registerEvent(
-                userId,
-                "Transfer completed successfully. transactionId=" + savedTx.getId()
-                        + ", originAccountId=" + origin.getId()
-                        + ", destinationAccountId=" + destination.getId()
-                        + ", amount=" + amount,
-                "TRANSFER_COMPLETED",
-                "TRANSACTION"
-        );
+        registerTransferCompletedAudit(userId,savedTx,origin,destination,amount);
 
         log.info("[TRANSFER_SUCCESS] transactionId={} originAccountId={} destinationAccountId={} amount={}",
                 savedTx.getId(), origin.getId(), destination.getId(), amount);
@@ -178,7 +121,7 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Transactional
     @Override
-    public TransactionResponseDto makeWithdraw(String idempotencyKey, WithDrawRequestDto dto) {
+    public TransactionResponseDto makeWithdraw(String idempotencyKey, WithDrawRequestDto dto)  {
         String email = currentUserService.getCurrentUserEmail();
         Long userId = currentUserService.getCurrentUserId();
 
@@ -199,71 +142,32 @@ public class TransactionServiceImpl implements TransactionService {
             throw new IdempotencyConflictException("This withdraw request is already being processed");
         }
 
-        IdempotencyRecord record = validationResult.getRecord();
-
-        try {
-            TransactionResponseDto response = executeWithdraw(dto, email, userId);
-            String responseBody = serializeResponse(response);
-
-            idempotencyService.markAsCompleted(
-                    record.getId(),
-                    201,
-                    responseBody,
-                    response.getId()
-            );
-            return response;
-        } catch (Exception ex) {
-            String errorMessage = ex.getMessage() != null ? ex.getMessage() : "Unexpected error during make withdraw ";
-            idempotencyService.markAsFailed(record.getId(), errorMessage);
-            throw ex;
-        }
+        return idempotencyService.executeAndComplete(
+                validationResult.getRecord(),
+                ()-> executeWithdraw(dto,email,userId),
+                TransactionResponseDto::getId,
+                HttpStatus.CREATED,
+                "Unexpected error during withdraw"
+        );
 
     }
 
     private TransactionResponseDto executeWithdraw(WithDrawRequestDto dto, String email, Long userId){
         log.info("[WITHDRAW_INIT] userEmail={} accountId={} amount={}", email, dto.getAccountId(), dto.getAmount());
 
+        validateWithdrawRequest(dto);
+
         BigDecimal amount = dto.getAmount();
-        validateAmount(amount);
 
-        Account account = accountRepository.findByIdAndUsersEmailForUpdate(dto.getAccountId(), email)
-                .orElseThrow(()-> {
-                    log.warn("[WITHDRAW_REJECTED] Account not found or access denied. userEmail={} accountId={}",
-                            email,dto.getAccountId());
-                    return new ResourceNotFoundException("Account not found");
-                });
+        Account account = getOwnedAccountForUpdate(dto.getAccountId(), email);
 
-        validateAccountActive(account, "Account", "WITHDRAW", userId);
+        validateAccountCanWithdraw(account, amount, userId);
 
-        if (account.getBalance().compareTo(amount) < 0) {
-            log.warn("[WITHDRAW_REJECTED] Insufficient balance. accountId={} balance={} requiredAmount={}",
-                    account.getId(), account.getBalance(), amount);
+        debitAccount(account,amount);
 
-            auditLogService.registerEvent(
-                    userId,
-                    "Withdraw rejected due to insufficient balance. accountId=" + account.getId()
-                            + ", balance=" + account.getBalance()
-                            + ", amount=" + amount,
-                    "WITHDRAW_REJECTED",
-                    "SECURITY"
-            );
-            throw new BusinessException("Insufficient balance for withdrawal");
-        }
+        Transaction savedTx = saveWithdrawTransaction(account,amount);
 
-        account.setBalance(account.getBalance().subtract(amount));
-        accountRepository.save(account);
-
-        Transaction tx = buildWithdrawTransaction(account,amount);
-        Transaction savedTx = transactionRepository.save(tx);
-
-        auditLogService.registerEvent(
-                userId,
-                "Withdraw completed successfully. transactionId=" + savedTx.getId()
-                        + ", accountId=" + account.getId()
-                        + ", amount=" + amount,
-                "WITHDRAW_COMPLETED",
-                "TRANSACTION"
-        );
+        registerWithdrawCompletedAudit(userId,savedTx,account,amount);
 
         log.info("[WITHDRAW_SUCCESS] transactionId={} accountId={} amount={} newBalance={}",
                 savedTx.getId(), account.getId(), amount, account.getBalance());
@@ -275,7 +179,7 @@ public class TransactionServiceImpl implements TransactionService {
 
     @Transactional
     @Override
-    public TransactionResponseDto makeCustomerDeposit(String idempotencyKey, CustomerDepositRequestDto dto) {
+    public TransactionResponseDto makeCustomerDeposit(String idempotencyKey, CustomerDepositRequestDto dto)  {
         String email = currentUserService.getCurrentUserEmail();
         Long userId= currentUserService.getCurrentUserId();
 
@@ -296,26 +200,13 @@ public class TransactionServiceImpl implements TransactionService {
             throw new IdempotencyConflictException("This deposit request is already being processed");
         }
 
-        IdempotencyRecord record= validationResult.getRecord();
-
-        try {
-            TransactionResponseDto response = executeCustomerDeposit(dto, email, userId);
-
-            String responseBody = serializeResponse(response);
-
-            idempotencyService.markAsCompleted(
-                    record.getId(),
-                    201,
-                    responseBody,
-                    response.getId()
-            );
-            return response;
-        } catch (Exception ex) {
-            String errorMessage = ex.getMessage() != null ? ex.getMessage() : "Unexpected error during customer deposit ";
-            idempotencyService.markAsFailed(record.getId(), errorMessage);
-            throw ex;
-        }
-
+        return idempotencyService.executeAndComplete(
+                validationResult.getRecord(),
+                ()-> executeCustomerDeposit(dto,email,userId),
+                TransactionResponseDto::getId,
+                HttpStatus.CREATED,
+                "Unexpected error during customer deposit"
+        );
     }
 
 
@@ -373,25 +264,13 @@ public class TransactionServiceImpl implements TransactionService {
             throw new IdempotencyConflictException("This administrative credit request is already being processed");
         }
 
-        IdempotencyRecord record= validationResult.getRecord();
-
-        try {
-            TransactionResponseDto response = executeAdministrativeCredit(dto, email, userId);
-
-            String responseBody = serializeResponse(response);
-
-            idempotencyService.markAsCompleted(
-                    record.getId(),
-                    201,
-                    responseBody,
-                    response.getId()
-            );
-            return response;
-        } catch (Exception ex) {
-            String errorMessage = ex.getMessage() != null ? ex.getMessage() : "Unexpected error during administrative credit ";
-            idempotencyService.markAsFailed(record.getId(), errorMessage);
-            throw ex;
-        }
+      return idempotencyService.executeAndComplete(
+              validationResult.getRecord(),
+              ()-> executeAdministrativeCredit(dto,email,userId),
+              TransactionResponseDto::getId,
+              HttpStatus.CREATED,
+              "Unexpected error during administrative credit"
+      );
 
     }
 
@@ -426,6 +305,7 @@ public class TransactionServiceImpl implements TransactionService {
         return transactionMapper.toDto(savedTransaction);
     }
 
+
     @Transactional(readOnly = true)
     @Override
     public List<TransactionResponseDto> getTransactionsByAccount(Long accountId) {
@@ -433,12 +313,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         log.info("[FETCH_ACCOUNT_TRANSACTIONS_INIT] userEmail={} accountId={}",  email,accountId);
 
-        accountRepository.findByIdAndUsersEmail(accountId, email)
-                .orElseThrow(()->{
-                    log.warn("[FETCH_ACCOUNT_TRANSACTIONS_REJECTED] account not found or access denied. userEmail={} accountId={}",
-                            email, accountId);
-                    return new ResourceNotFoundException("Account not found");
-                });
+        Account account = getOwnedAccountForUpdate(accountId, email);
 
         List<Transaction> transactions = transactionRepository.findMyTransactionsByAccount(email, accountId);
 
@@ -475,11 +350,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         log.info("[FETCH_USER_TRANSACTIONS_INIT] requesterEmail={} requestedUserId={}", requesterEmail, userId);
 
-       if (!usersRepository.existsById(userId)) {
-           log.warn("[FETCH_USER_TRANSACTIONS_REJECTED] requested user not found. requesterEmail={} requestedUserId={}",
-                   requesterEmail, userId);
-           throw new ResourceNotFoundException("User not found");
-       }
+       Account account= getOwnedAccountForUpdate(requestUserId, requesterEmail);
 
         List<Transaction> transactions = transactionRepository.findAllByUserId(userId);
 
@@ -497,9 +368,12 @@ public class TransactionServiceImpl implements TransactionService {
                 .map(transactionMapper::toDto)
                 .collect(Collectors.toList());
     }
-    // -------------------
-    // Helpers
-    // ---------------------------
+
+
+    private void debitAccount(Account account, BigDecimal amount) {
+        account.setBalance(account.getBalance().subtract(amount));
+    }
+
 
     private void validateAmount(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
@@ -539,6 +413,87 @@ public class TransactionServiceImpl implements TransactionService {
         }
     }
 
+    private void validateTransferRequest(TransactionRequestDto dto, String email, Long userId) {
+        validateAmount(dto.getAmount());
+
+        if (dto.getOriginAccountId() == null) {
+            throw new BusinessException("Origin account ID is required");
+        }
+        if (dto.getOriginAccountId().equals(dto.getDestinationAccountId())) {
+            log.warn("[TRANSFER_REJECTED] reason=same_account userEmail={} accountId={}",
+                    email, dto.getOriginAccountId());
+
+            auditLogService.registerEvent(
+                    userId,
+                    "Transfer rejected: origin and destination accounts are the same. accountId=" +
+                            dto.getOriginAccountId(),
+                    "TRANSFER_REJECTED",
+                    "SECURITY"
+            );
+
+            throw new BusinessException("Origin and destination accounts must be different");
+        }
+    }
+
+    private void validateWithdrawRequest(WithDrawRequestDto dto) {
+        if (dto.getAccountId() == null) {
+            throw new BusinessException("Account ID is required");
+        }
+        validateAmount(dto.getAmount());
+    }
+
+    private void validateAccountsCanTransfer(Account origin, Account destination, BigDecimal amount, Long userId){
+        validateAccountActive(origin,"Origin", "TRANSFER", userId);
+        validateAccountActive(destination, "Destination", "TRANSFER", userId);
+        validateSufficientBalanceForTransfer(origin,destination,amount,userId);
+    }
+
+    private void validateAccountCanWithdraw(Account account, BigDecimal amount, Long userId) {
+        validateAccountActive(account, "Account", "WITHDRAW", userId);
+        validateSufficientBalanceForWithdraw(account,amount,userId);
+    }
+
+    private void validateSufficientBalanceForTransfer(
+            Account origin,
+            Account destination,
+            BigDecimal amount,
+            Long userId
+    ) {
+        if (origin.getBalance().compareTo(amount) > 0) {
+            log.warn("[TRANSFER_REJECTED] reason=insufficient_balance originAccountId={} balance={} requiredAmounr={}",
+                    origin.getId(), origin.getBalance(),amount);
+
+            auditLogService.registerEvent(
+                    userId,
+                    "Transfer rejected due to insufficient balance. originAccountId=" + origin.getId()
+                    + ", destinationAccountId=" + destination.getId()
+                    + ", amount=" + amount,
+                    "TRANSFER_REJECTED",
+                    "SECURITY"
+            );
+
+            throw new BusinessException("Insufficient balance for transfer");
+        }
+    }
+
+    private void validateSufficientBalanceForWithdraw(Account account, BigDecimal amount, Long userId){
+        if (account.getBalance().compareTo(amount) < 0) {
+            log.warn("[WITHDRAW_REJECTED] reason=insufficient_balance accountId={} balance={} requiredAmount={}",
+                    account.getId(),account.getBalance(),amount);
+
+            auditLogService.registerEvent(
+                    userId,
+                    "Withdraw rejected due to insufficient balance. accountId=" + account.getId()
+                    + ", balance=" + account.getBalance()
+                    + ", amount=" + amount,
+                    "WITHDRAW_REJECTED",
+                    "SECURITY"
+            );
+
+            throw new BusinessException("Insufficient balance for withdraw");
+        }
+    }
+
     private Transaction buildTransferTransaction(Account origin, Account destination, BigDecimal amount) {
         Transaction tx = new Transaction();
         tx.setAmount(amount);
@@ -551,15 +506,6 @@ public class TransactionServiceImpl implements TransactionService {
         return tx;
     }
 
-    private Transaction buildDepositTransaction(Account account, BigDecimal amount) {
-        Transaction tx = new Transaction();
-        tx.setAmount(amount);
-        tx.setAccountDestiny(account);
-        tx.setCreationDate(LocalDateTime.now());
-        tx.setStatusTransaction(StatusTransaction.COMPLETED);
-        tx.setTypeTransaction(TransactionOperationType.DEPOSIT);
-        return tx;
-    }
 
     private Transaction buildWithdrawTransaction(Account account, BigDecimal amount) {
         Transaction tx = new Transaction();
@@ -610,17 +556,54 @@ public class TransactionServiceImpl implements TransactionService {
                 .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
     }
 
+    private void applyTransfer(Account origin, Account destination, BigDecimal amount){
+        origin.setBalance(origin.getBalance().subtract(amount));
+        destination.setBalance(destination.getBalance().add(amount));
+    }
+
     private void applyCreditToAccount(Account account, BigDecimal amount) {
         account.setBalance(account.getBalance().add(amount));
     }
 
-    private String serializeResponse(TransactionResponseDto response) {
-        try {
-            return objectMapper.writeValueAsString(response);
-        }catch (Exception e) {
-            throw new BusinessException("Error serializing transaction response");
-        }
+    private Transaction saveTransferTransaction(Account origin, Account destination, BigDecimal amount) {
+        Transaction tx = buildTransferTransaction(origin,destination,amount);
+        return transactionRepository.save(tx);
     }
+
+    private Transaction saveWithdrawTransaction(Account account, BigDecimal amount) {
+        Transaction tx = buildWithdrawTransaction(account,amount);
+        return transactionRepository.save(tx);
+    }
+
+    private void registerTransferCompletedAudit(
+            Long userId,
+            Transaction savedTx,
+            Account origin,
+            Account destination,
+            BigDecimal amount
+    ) {
+        auditLogService.registerEvent(
+                userId,
+                "Transfer completed successfully. transactionId=" + savedTx.getId()
+                + ", originAccountId=" + origin.getId()
+                + ", destinationAccountId=" + destination.getId()
+                + ", amount=" + amount,
+                "TRANSFER_COMPLETED",
+                "TRANSACTION"
+        );
+    }
+
+    private void registerWithdrawCompletedAudit(Long userId, Transaction savedTx, Account account, BigDecimal amount) {
+        auditLogService.registerEvent(
+                userId,
+                "Withdraw completed successfully. transactionId=" + savedTx.getId()
+                + ", accountId=" + account.getId()
+                + ", amount=" + amount,
+                "WITHDRAW_COMPLETED",
+                "TRANSACTION"
+        );
+    }
+
 
     private TransactionResponseDto replayResponse(IdempotencyRecord record) {
         try {
