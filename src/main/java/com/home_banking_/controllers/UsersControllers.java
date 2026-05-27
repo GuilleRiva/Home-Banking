@@ -92,7 +92,6 @@ UsersControllers {
     }
 
 
-
     @Operation(
             summary = "Register a new user",
             description = "Creates a new user in the system based on the provided data."
@@ -148,7 +147,6 @@ UsersControllers {
         log.info("User with ID {} successfully deleted", userId);
         return ResponseEntity.noContent().build();
     }
-
 
 
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYED')")

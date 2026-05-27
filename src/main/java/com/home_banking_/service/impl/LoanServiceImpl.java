@@ -8,8 +8,9 @@ import com.home_banking_.dto.response.LoanResponseDto;
 import com.home_banking_.enums.IdempotencyOperation;
 import com.home_banking_.enums.LoanStatus;
 import com.home_banking_.enums.StatusAccount;
-import com.home_banking_.exceptions.BusinessException;
-import com.home_banking_.exceptions.ResourceNotFoundException;
+import com.home_banking_.exceptions.custom.AccountStateException;
+import com.home_banking_.exceptions.custom.BusinessException;
+import com.home_banking_.exceptions.custom.ResourceNotFoundException;
 import com.home_banking_.mappers.LoanMapper;
 import com.home_banking_.model.Account;
 import com.home_banking_.model.Loan;
@@ -345,7 +346,7 @@ public class LoanServiceImpl implements LoanService {
                     "SECURITY"
             );
 
-            throw new BusinessException(
+            throw new AccountStateException(
                     "Account " + account.getId() + " is not active and cannot perform operations"
             );
         }
@@ -388,7 +389,7 @@ public class LoanServiceImpl implements LoanService {
                     "SECURITY"
             );
 
-            throw new BusinessException("Account already has a pending loan request");
+            throw new AccountStateException("Account already has a pending loan request");
         }
     }
 
@@ -409,7 +410,7 @@ public class LoanServiceImpl implements LoanService {
                     "SECURITY"
             );
 
-            throw new BusinessException("Account already has an active loan");
+            throw new AccountStateException("Account already has an active loan");
         }
     }
 

@@ -3,7 +3,7 @@ package com.home_banking_.controllers;
 import com.home_banking_.dto.request.LoanGrantRequestDto;
 import com.home_banking_.dto.request.LoanSimulationRequestDto;
 import com.home_banking_.dto.response.LoanResponseDto;
-import com.home_banking_.exceptions.ResourceNotFoundException;
+import com.home_banking_.exceptions.custom.ResourceNotFoundException;
 import com.home_banking_.service.LoanService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

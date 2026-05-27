@@ -2,8 +2,8 @@ package com.home_banking_.service.impl;
 
 import com.home_banking_.dto.request.IPAddressRequestDto;
 import com.home_banking_.dto.response.IPAddressResponseDto;
-import com.home_banking_.exceptions.BusinessException;
-import com.home_banking_.exceptions.ResourceNotFoundException;
+import com.home_banking_.exceptions.custom.BusinessException;
+import com.home_banking_.exceptions.custom.ResourceNotFoundException;
 import com.home_banking_.mappers.IPAddressMapper;
 import com.home_banking_.model.IPAddress;
 import com.home_banking_.model.Users;
@@ -80,7 +80,6 @@ public class IPAddressServiceImpl implements IPAddressService {
                 ipAddress.getId(),
                 ipAddress.getUsers() != null ? ipAddress.getUsers().getId() : null);
     }
-
 
 
     @Override

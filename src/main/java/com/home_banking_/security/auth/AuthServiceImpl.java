@@ -7,7 +7,7 @@ import com.home_banking_.enums.IdempotencyOperation;
 import com.home_banking_.enums.Rol;
 import com.home_banking_.enums.JwtTokenType;
 import com.home_banking_.enums.UserStatus;
-import com.home_banking_.exceptions.BusinessException;
+import com.home_banking_.exceptions.custom.BusinessException;
 import com.home_banking_.model.IdempotencyRecord;
 import com.home_banking_.model.Users;
 import com.home_banking_.repository.UsersRepository;

@@ -4,6 +4,8 @@ public enum ErrorCode {
     RESOURCE_NOT_FOUND("HB-404-001"),
     BUSINESS_RULE_VIOLATION("HB-409-001"),
     VALIDATION_FAILED("HB-400-VAL"),
+    IDEMPOTENCY_CONFLICT("HB-409-002"),
+    CONFLICT("HB-409-003"),
     INTERNAL_ERROR("HB-500-001");
 
     private  final String code;

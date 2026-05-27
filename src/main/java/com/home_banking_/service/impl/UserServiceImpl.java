@@ -7,8 +7,9 @@ import com.home_banking_.dto.response.UserResponseDto;
 import com.home_banking_.enums.IdempotencyOperation;
 import com.home_banking_.enums.Rol;
 import com.home_banking_.enums.UserStatus;
-import com.home_banking_.exceptions.BusinessException;
-import com.home_banking_.exceptions.ResourceNotFoundException;
+import com.home_banking_.exceptions.custom.AccountStateException;
+import com.home_banking_.exceptions.custom.BusinessException;
+import com.home_banking_.exceptions.custom.ResourceNotFoundException;
 import com.home_banking_.mappers.UsersMapper;
 import com.home_banking_.model.IdempotencyRecord;
 import com.home_banking_.model.Users;
@@ -154,7 +155,7 @@ public class UserServiceImpl implements UserService {
         }
 
         if (users.getUserStatus() == UserStatus.BLOCKED) {
-            throw new BusinessException("Blocked users cannot be activated directly");
+            throw new AccountStateException("Blocked users cannot be activated directly");
         }
 
         users.setUserStatus(UserStatus.ACTIVE);

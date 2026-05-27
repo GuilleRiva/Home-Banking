@@ -32,7 +32,7 @@ public class AuthController {
 
     @Operation(summary = "Login", description = "Authenticates the user and returns the access token and refresh token")
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login (@RequestBody AuthRequest request,
+    public ResponseEntity<AuthResponse> login (@Valid @RequestBody AuthRequest request,
                                                HttpServletRequest httpRequest){
 
         String ipAddress = httpRequest.getRemoteAddr();

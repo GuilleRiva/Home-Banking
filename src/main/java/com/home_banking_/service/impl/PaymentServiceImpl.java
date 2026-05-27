@@ -6,8 +6,7 @@ import com.home_banking_.dto.request.PaymentRequestDto;
 import com.home_banking_.dto.request.ServicePaymentRequestDto;
 import com.home_banking_.dto.response.PaymentResponseDto;
 import com.home_banking_.enums.*;
-import com.home_banking_.exceptions.BusinessException;
-import com.home_banking_.exceptions.ResourceNotFoundException;
+import com.home_banking_.exceptions.custom.*;
 import com.home_banking_.mappers.PaymentMapper;
 import com.home_banking_.model.Account;
 import com.home_banking_.model.Payment;
@@ -225,7 +224,7 @@ public class PaymentServiceImpl implements PaymentService {
                 .collect(Collectors.toList());
     }
 
-                  // HELPERS //
+
 
     private Account getOwnedAccount(Long accountId, String email) {
         return accountRepository.findByIdAndUsersEmail(accountId, email)
@@ -254,14 +253,14 @@ public class PaymentServiceImpl implements PaymentService {
                     PaymentAuditAction.PAYMENT_REJECTED_INACTIVE_ACCOUNT,
                     AuditType.TRANSACTION
             );
-            throw new BusinessException("The account is not active");
+            throw new AccountStateException("The account is not active");
         }
     }
 
     private void validateAmount(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             log.warn("[PAYMENT_REJECTED] reason= Invalid payment amount amount={}", amount);
-            throw new BusinessException("The payment amount must be greater than zero");
+            throw new InsufficientFundsException("The payment amount must be greater than zero");
         }
         if (amount.scale() > 2) {
             log.warn("[PAYMENT_REJECTED] reason=Invalid decimal scale amount={}", amount);
@@ -280,7 +279,7 @@ public class PaymentServiceImpl implements PaymentService {
                     PaymentAuditAction.PAYMENT_REJECTED_INSUFFICIENT_BALANCE,
                     AuditType.TRANSACTION
             );
-            throw new BusinessException("Insufficient balance to make the payment");
+            throw new InsufficientFundsException("Insufficient balance to make the payment");
         }
     }
 
@@ -288,7 +287,7 @@ public class PaymentServiceImpl implements PaymentService {
         validateAmount(dto.getAmount());
 
         if (dto.getAccountId() == null) {
-            throw new BusinessException("Account ID is required");
+            throw new AccountStateException("Account ID is required");
         }
         if (dto.getDescription() == null || dto.getDescription().isBlank()) {
             throw new BusinessException("Payment description is required");
@@ -306,7 +305,7 @@ public class PaymentServiceImpl implements PaymentService {
         } catch (JsonProcessingException e) {
             log.error("[PAYMENT_IDEMPOTENCY_DESERIALIZATION_ERROR]", e);
 
-            throw new BusinessException("The payment could not be processed.");
+            throw new IdempotencyConflictException("The payment could not be processed.");
         }
     }
 
@@ -332,7 +331,7 @@ public class PaymentServiceImpl implements PaymentService {
             log.error("[PAYMENT_IDEMPOTENCY_SERIALIZATION_ERROR] loanId={}",
                     response.getId(), e);
 
-            throw new BusinessException("Could not serialize payment response");
+            throw new IdempotencyConflictException("Could not serialize payment response");
         }
     }
 

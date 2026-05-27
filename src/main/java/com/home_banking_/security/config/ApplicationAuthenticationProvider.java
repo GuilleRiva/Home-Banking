@@ -30,7 +30,7 @@ public class ApplicationAuthenticationProvider implements AuthenticationProvider
         UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
         //3. Verifica la contraseña de BCrypt
-        if (!passwordEncoder.matches(rawPassword, userDetails.getPassword())){
+        if (!passwordEncoder.matches(rawPassword, userDetails.password())){
             throw new BadCredentialsException("Invalid email or password");
         }
 

@@ -2,7 +2,7 @@ package com.home_banking_.controllers;
 
 import com.home_banking_.dto.request.IPAddressRequestDto;
 import com.home_banking_.dto.response.IPAddressResponseDto;
-import com.home_banking_.exceptions.ResourceNotFoundException;
+import com.home_banking_.exceptions.custom.ResourceNotFoundException;
 import com.home_banking_.model.Users;
 import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.IPAddressService;
@@ -47,7 +47,6 @@ public class IPAddressController {
     @PreAuthorize("hasRole('AUDITOR')")
     public ResponseEntity<IPAddressResponseDto>registerIP(@RequestBody IPAddressRequestDto dto){
         log.info("POST /api/ip/register - Registering IP for userId: {} | IP: {}", dto.getUserId(), dto.getIpAddress());
-
 
         IPAddressResponseDto registeredIP = ipAddressService.registerIP(dto);
         log.info("IP successfully registered for userID: {}", dto.getUserId());

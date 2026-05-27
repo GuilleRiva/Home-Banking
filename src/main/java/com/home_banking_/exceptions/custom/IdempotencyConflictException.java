@@ -1,4 +1,4 @@
-package com.home_banking_.exceptions;
+package com.home_banking_.exceptions.custom;
 
 public class IdempotencyConflictException extends RuntimeException{
 

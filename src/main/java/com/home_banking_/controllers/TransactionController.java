@@ -77,9 +77,11 @@ public class TransactionController {
     public ResponseEntity<TransactionResponseDto> makeCustomerDeposit(
             @RequestHeader(IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @Valid @RequestBody CustomerDepositRequestDto dto){
+
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(transactionService.makeCustomerDeposit(idempotencyKey, dto));
     }
+
 
     @Operation(
             summary = "Create an administrative credit",
@@ -99,6 +101,7 @@ public class TransactionController {
     public ResponseEntity<TransactionResponseDto> makeAdministrativeCredit(
             @RequestHeader(IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @Valid @RequestBody AdministrativeCreditRequestDto dto) {
+
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(transactionService.makeAdministrativeCredit(idempotencyKey, dto));
     }
@@ -129,6 +132,7 @@ public class TransactionController {
     @GetMapping("/me")
     @PreAuthorize("hasAnyRole('CLIENT')")
     public ResponseEntity<List<TransactionResponseDto>>getMyTransactions(){
+
         return ResponseEntity.ok(transactionService.getMyTransactions());
     }
 
@@ -138,6 +142,7 @@ public class TransactionController {
     @GetMapping("/accounts/{accountId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'EMPLOYED', 'AUDITOR')")
     public ResponseEntity<List<TransactionResponseDto>> getTransactionsByAccount(@PathVariable Long accountId) {
+
         return ResponseEntity.ok(transactionService.getTransactionsByAccount(accountId));
     }
 
@@ -147,6 +152,7 @@ public class TransactionController {
     @GetMapping("/users/{userId}")
     @PreAuthorize("hasAnyRole('ADMIN','EMPLOYED','AUDITOR')")
     public ResponseEntity<List<TransactionResponseDto>> getTransactionByUser(@PathVariable Long userId) {
+
         return ResponseEntity.ok(transactionService.getTransactionsByUser(userId));
     }
 

@@ -76,7 +76,6 @@ public class NotificationController {
     }
 
 
-
     @Operation(
             summary = "Get unread notifications by user.",
             description = "Retrieves all unread notifications associated with the specified user account."

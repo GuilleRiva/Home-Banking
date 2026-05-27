@@ -4,8 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.home_banking_.dto.request.AccountCreateRequestDto;
 import com.home_banking_.dto.response.AccountResponseDto;
 import com.home_banking_.enums.*;
-import com.home_banking_.exceptions.BusinessException;
-import com.home_banking_.exceptions.ResourceNotFoundException;
+import com.home_banking_.exceptions.custom.*;
 import com.home_banking_.mappers.AccountMapper;
 import com.home_banking_.model.Account;
 import com.home_banking_.model.IdempotencyRecord;
@@ -138,7 +137,7 @@ public class AccountServiceImpl implements AccountService {
                     "BANKING"
             );
 
-            throw new BusinessException("Account is already closed");
+            throw new AccountStateException("Account is already closed");
         }
 
         validateAccountCanBeClosed(account);
@@ -251,7 +250,7 @@ public class AccountServiceImpl implements AccountService {
         }
 
         if (accountRepository.existsByUsersIdAndAliasIgnoreCase(userId, alias)) {
-            throw new BusinessException("Alias already in use");
+            throw new DuplicateResourceException("Alias already in use");
         }
 
         if (accountRepository.countByUsersId(userId) >= MAX_ACCOUNTS_PER_USER) {
@@ -259,7 +258,7 @@ public class AccountServiceImpl implements AccountService {
         }
 
         if (accountRepository.existsByUsersIdAndTypeAccount(userId, typeAccount)) {
-            throw new BusinessException("User already has an account of this type");
+            throw new AccountStateException("User already has an account of this type");
         }
     }
 
@@ -275,7 +274,7 @@ public class AccountServiceImpl implements AccountService {
                     "CLOSE_ACCOUNT_REJECTED",
                     "BANKING"
             );
-            throw new BusinessException("Account cannot be deleted while balance is greater than zero");
+            throw new AccountStateException("Account cannot be deleted while balance is greater than zero");
         }
 
         boolean hasActiveLoans = loanRepository.existsByAccountIdAndLoanStatusIn(
@@ -292,7 +291,7 @@ public class AccountServiceImpl implements AccountService {
                     "BANKING"
             );
 
-            throw new BusinessException("Account cannot be closed while it has active loans");
+            throw new AccountStateException("Account cannot be closed while it has active loans");
         }
     }
 
@@ -352,7 +351,7 @@ public class AccountServiceImpl implements AccountService {
         try {
             return objectMapper.readValue(record.getResponseBody(), AccountResponseDto.class);
         } catch (Exception e) {
-            throw new BusinessException("Error reconstructing idempotent response");
+            throw new IdempotencyConflictException("Error reconstructing idempotent response");
         }
     }
 
@@ -373,7 +372,7 @@ public class AccountServiceImpl implements AccountService {
 
             idempotencyService.markAsFailed(record.getId(), errorMessage);
 
-            throw new BusinessException("Could not complete idempotent create account operation");
+            throw new IdempotencyConflictException("Could not complete idempotent create account operation");
         }
     }
 }

@@ -4,9 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.home_banking_.dto.request.*;
 import com.home_banking_.dto.response.TransactionResponseDto;
 import com.home_banking_.enums.*;
-import com.home_banking_.exceptions.BusinessException;
-import com.home_banking_.exceptions.IdempotencyConflictException;
-import com.home_banking_.exceptions.ResourceNotFoundException;
+import com.home_banking_.exceptions.custom.*;
 import com.home_banking_.mappers.TransactionMapper;
 import com.home_banking_.model.Account;
 import com.home_banking_.model.IdempotencyRecord;
@@ -378,7 +376,7 @@ public class TransactionServiceImpl implements TransactionService {
     private void validateAmount(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             log.warn("[AMOUNT_VALIDATION_REJECTED] amount={} reason=Invalid amount", amount);
-            throw new BusinessException("Amount must be positive");
+            throw new InsufficientFundsException("Amount must be positive");
         }
         if (amount.scale() > 2) {
             throw new BusinessException("Amount must have at most 2 decimal places");
@@ -397,7 +395,7 @@ public class TransactionServiceImpl implements TransactionService {
                     operation + "_REJECTED",
                     "SECURITY"
             );
-            throw new BusinessException(label + " account is not active");
+            throw new AccountStateException(label + " account is not active");
         }
     }
 
@@ -417,7 +415,7 @@ public class TransactionServiceImpl implements TransactionService {
         validateAmount(dto.getAmount());
 
         if (dto.getOriginAccountId() == null) {
-            throw new BusinessException("Origin account ID is required");
+            throw new AccountStateException("Origin account ID is required");
         }
         if (dto.getOriginAccountId().equals(dto.getDestinationAccountId())) {
             log.warn("[TRANSFER_REJECTED] reason=same_account userEmail={} accountId={}",
@@ -431,13 +429,13 @@ public class TransactionServiceImpl implements TransactionService {
                     "SECURITY"
             );
 
-            throw new BusinessException("Origin and destination accounts must be different");
+            throw new InvalidTransactionException("Origin and destination accounts must be different");
         }
     }
 
     private void validateWithdrawRequest(WithDrawRequestDto dto) {
         if (dto.getAccountId() == null) {
-            throw new BusinessException("Account ID is required");
+            throw new AccountStateException("Account ID is required");
         }
         validateAmount(dto.getAmount());
     }
@@ -472,7 +470,7 @@ public class TransactionServiceImpl implements TransactionService {
                     "SECURITY"
             );
 
-            throw new BusinessException("Insufficient balance for transfer");
+            throw new InsufficientFundsException("Insufficient balance for transfer");
         }
     }
 
@@ -490,7 +488,7 @@ public class TransactionServiceImpl implements TransactionService {
                     "SECURITY"
             );
 
-            throw new BusinessException("Insufficient balance for withdraw");
+            throw new InsufficientFundsException("Insufficient balance for withdraw");
         }
     }
 

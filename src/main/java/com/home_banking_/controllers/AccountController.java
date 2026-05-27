@@ -151,7 +151,6 @@ public class AccountController {
     }
 
 
-
     @Operation(
             summary = "Delete an account",
             description = "Deletes a bank account permanently by its ID."

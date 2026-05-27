@@ -1,7 +1,6 @@
 package com.home_banking_.service.security;
 
-import com.home_banking_.exceptions.BusinessException;
-import com.home_banking_.exceptions.ResourceNotFoundException;
+import com.home_banking_.exceptions.custom.ResourceNotFoundException;
 import com.home_banking_.model.Users;
 import com.home_banking_.repository.UsersRepository;
 import org.springframework.security.core.Authentication;
@@ -22,7 +21,7 @@ public class CurrentUserServiceImpl implements CurrentUserService{
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null || !authentication.isAuthenticated()) {
-            throw new BusinessException("Authenticated user not found");
+            throw new ResourceNotFoundException("Authenticated user not found");
         }
 
         return authentication.getName();

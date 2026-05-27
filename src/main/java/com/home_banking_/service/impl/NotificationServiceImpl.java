@@ -3,7 +3,7 @@ package com.home_banking_.service.impl;
 import com.home_banking_.dto.request.NotificationRequestDto;
 import com.home_banking_.dto.response.NotificationResponseDto;
 import com.home_banking_.enums.TypeNotification;
-import com.home_banking_.exceptions.ResourceNotFoundException;
+import com.home_banking_.exceptions.custom.ResourceNotFoundException;
 import com.home_banking_.mappers.NotificationMapper;
 import com.home_banking_.model.Notification;
 import com.home_banking_.model.Users;
@@ -13,7 +13,6 @@ import com.home_banking_.service.NotificationService;
 import com.home_banking_.service.security.CurrentUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;

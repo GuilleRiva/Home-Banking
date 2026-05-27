@@ -35,7 +35,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain) throws ServletException, IOException {
 
 
-        // Endpoints públicos o que no requieren JWT
         String path = request.getRequestURI();
 
         if (path.startsWith("/api/auth/") ||
@@ -46,15 +45,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Leer extraer
+
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
                     return;
         }
 
-        // Extraer JWT
-        String jwt = authHeader.substring(7);  // "Bearer " .lenght()
+
+        String jwt = authHeader.substring(7);
 
         log.debug("JWT received: ...{}", jwt.length() > 6 ? jwt.substring(jwt.length()-6) : jwt);
 
@@ -65,23 +64,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 
         try {
-            // Extraer subject (username/email)
+
              String username = jwtService.extractUsername(jwt);
 
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                // Verificación criptografica + expiracion
                 boolean cryptoValid = jwtService.isTokenValid(jwt);
 
-                // validación de revocación/expiración en DB
                 boolean dbValid = tokenRepo.existsByTokenAndExpiredFalseAndRevokedFalse(jwt);
 
                 if (cryptoValid  && dbValid) {
 
-                    //Cargar usuario
+
                     UserDetails ud = userDetailsService.loadUserByUsername(username);
 
-                    //Authorities.
+
                     var auth = new UsernamePasswordAuthenticationToken(ud, null ,ud.getAuthorities());
 
                     auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -95,16 +92,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             }
 
-            //Continuar cadena
             filterChain.doFilter(request, response);
 
         } catch (JwtException | IllegalArgumentException e) {
-            // Token mal formado / expirado / firma inválida
+
             log.debug("JWT exception : {}",  e.getMessage());
             SecurityContextHolder.clearContext();
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
 
-            // No lancemos runtime; dejamos que EntryPoint responda 401
         }
 
 
