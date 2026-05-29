@@ -8,6 +8,8 @@ import com.home_banking_.dto.response.LoanResponseDto;
 import com.home_banking_.enums.IdempotencyOperation;
 import com.home_banking_.enums.LoanStatus;
 import com.home_banking_.enums.StatusAccount;
+import com.home_banking_.enums.audit.AuditType;
+import com.home_banking_.enums.audit.LoanAuditAction;
 import com.home_banking_.exceptions.custom.AccountStateException;
 import com.home_banking_.exceptions.custom.BusinessException;
 import com.home_banking_.exceptions.custom.ResourceNotFoundException;
@@ -83,12 +85,12 @@ public class LoanServiceImpl implements LoanService {
 
         auditLogService.registerEvent(
                 userId,
-                "Loan simulation completed successfully. accountId=" + account.getId()
-                        + ", amount=" + dto.getAmount()
-                + ", installments=" + dto.getInstallments()
-                + ", totalToPay=" + simulatedLoan.getTotalToPay(),
-                "LOAN_SIMULATED",
-                "LOAN"
+                "Loan simulation completed successfully. accountId= " + account.getId()
+                        + ", amount= " + dto.getAmount()
+                + ", installments= " + dto.getInstallments()
+                + ", totalToPay= " + simulatedLoan.getTotalToPay(),
+                LoanAuditAction.LOAN_SIMULATION_COMPLETED,
+                AuditType.LOAN
         );
         return loanMapper.toDto(simulatedLoan);
     }
@@ -159,8 +161,8 @@ public class LoanServiceImpl implements LoanService {
                 "Loan granted successfully. loanId= " + savedLoan.getId()
                         + ", accountId= " + account.getId()
                         + ", installments= " + savedLoan.getInstallments(),
-                "LOAN_GRANTED",
-                "TRANSACTION"
+                LoanAuditAction.LOAN_GRANTED,
+                AuditType.LOAN
         );
 
         log.info("[LOAN_GRANT_SUCCESS] loanId={} accountId={} amount={} currency={} installments={} totalToPay={} endDate={}",
@@ -229,12 +231,12 @@ public class LoanServiceImpl implements LoanService {
 
         auditLogService.registerEvent(
                 userId,
-                "Loan request created successfully. loanId=" + savedLoan.getId()
-                + ", accountId=" + account.getId()
-                + ", installments=" + savedLoan.getInstallments()
-                + ", currency=" + savedLoan.getCurrency(),
-                "LOAN_REQUEST_CREATED",
-                "TRANSACTION"
+                "Loan request created successfully. loanId= " + savedLoan.getId()
+                + ", accountId= " + account.getId()
+                + ", installments= " + savedLoan.getInstallments()
+                + ", currency= " + savedLoan.getCurrency(),
+                LoanAuditAction.LOAN_REQUEST_CREATED,
+                AuditType.LOAN
         );
 
         log.info("[LOAN_REQUEST_SUCCESS] userId={} loanId={} accountId={} amount={} currency={} installments={} status={}",
@@ -248,7 +250,6 @@ public class LoanServiceImpl implements LoanService {
 
         return loanMapper.toDto(savedLoan);
     }
-
 
 
     @Transactional(readOnly = true)
@@ -321,16 +322,17 @@ public class LoanServiceImpl implements LoanService {
         }
     }
 
+
     private void validateLoanGrantRequest(LoanGrantRequestDto dto) {
         validateAmount(dto.getAmount());
         validateLoanRequest(dto.getAmount(), dto.getInstallments());
     }
 
+
     private void validateAccountCanReceiveLoan(Account account, Long userId){
         validateAccountHasNoActiveLoan(account,userId);
         validateAccountHasNoPendingLoan(account,userId);
     }
-
 
 
     private void validateAndTraceActiveAccount(Account account, String logPrefix, String eventType, Long userId) {
@@ -340,10 +342,10 @@ public class LoanServiceImpl implements LoanService {
 
             auditLogService.registerEvent(
                     userId,
-                    logPrefix + " rejected because account is not active. accountId="
-                            + account.getId() + ", status=" + account.getStatusAccount(),
-                    eventType,
-                    "SECURITY"
+                    logPrefix + " rejected because account is not active. accountId= "
+                            + account.getId() + ", status= " + account.getStatusAccount(),
+                    LoanAuditAction.LOAN_REJECTED,
+                    AuditType.LOAN
             );
 
             throw new AccountStateException(
@@ -384,9 +386,9 @@ public class LoanServiceImpl implements LoanService {
 
             auditLogService.registerEvent(
                     userId,
-                    "Loan request rejected because account already has a pending loan. accountId=" + account.getId(),
-                    "LOAN_REQUEST_REJECTED",
-                    "SECURITY"
+                    "Loan request rejected because account already has a pending loan. accountId= " + account.getId(),
+                    LoanAuditAction.LOAN_REJECTED,
+                    AuditType.LOAN
             );
 
             throw new AccountStateException("Account already has a pending loan request");
@@ -405,15 +407,14 @@ public class LoanServiceImpl implements LoanService {
 
             auditLogService.registerEvent(
                     userId,
-                    "Loan rejected because account already has an active loan. accountId=" + account.getId(),
-                    "LOAN_REJECTED",
-                    "SECURITY"
+                    "Loan rejected because account already has an active loan. accountId= " + account.getId(),
+                    LoanAuditAction.LOAN_REJECTED,
+                    AuditType.LOAN
             );
 
             throw new AccountStateException("Account already has an active loan");
         }
     }
-
 
 
     private LoanResponseDto deserializeLoanResponse(String responseBody) {

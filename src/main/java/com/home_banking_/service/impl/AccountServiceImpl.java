@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.home_banking_.dto.request.AccountCreateRequestDto;
 import com.home_banking_.dto.response.AccountResponseDto;
 import com.home_banking_.enums.*;
+import com.home_banking_.enums.audit.AccountAuditAction;
+import com.home_banking_.enums.audit.AuditType;
 import com.home_banking_.exceptions.custom.*;
 import com.home_banking_.mappers.AccountMapper;
 import com.home_banking_.model.Account;
@@ -131,12 +133,11 @@ public class AccountServiceImpl implements AccountService {
 
             auditLogService.registerEvent(
                     account.getUsers().getId(),
-                    "Account closure rejected because is greater tha zero. accountId=" + account.getId()
+                    "Account closure rejected because is greater tha zero. accountId= " + account.getId()
                             + ", balance=" + account.getBalance(),
-                    "CLOSE_ACCOUNT_REJECTED",
-                    "BANKING"
+                    AccountAuditAction.ACCOUNT_CLOSE_REJECTED,
+                    AuditType.ACCOUNT
             );
-
             throw new AccountStateException("Account is already closed");
         }
 
@@ -147,17 +148,16 @@ public class AccountServiceImpl implements AccountService {
 
         auditLogService.registerEvent(
                 account.getUsers().getId(),
-                "Account closed successfully. accountId=" + account.getId()
-                        + ", alias=" + account.getMaskAlias()
-                        + ", status=" + account.getStatusAccount(),
-                "CLOSE_ACCOUNT",
-                "BANKING"
+                "Account closed successfully. accountId= " + account.getId()
+                        + ", alias= " + account.getMaskAlias()
+                        + ", status= " + account.getStatusAccount(),
+                AccountAuditAction.CLOSED_ACCOUNT,
+                AuditType.ACCOUNT
         );
 
         log.info("[ACCOUNT_CLOSE_SUCCESS] userEmail={} accountId={} status={}",
                 email, account.getId(), account.getStatusAccount());
     }
-
 
 
     @Override
@@ -177,7 +177,6 @@ public class AccountServiceImpl implements AccountService {
     }
 
 
-
     @Override
     @Transactional(readOnly = true)
     public AccountResponseDto getAccountById(Long id) {
@@ -191,7 +190,6 @@ public class AccountServiceImpl implements AccountService {
                 email, account.getId(), account.getStatusAccount());
         return accountMapper.toDto(account);
     }
-
 
 
     @Override
@@ -210,7 +208,6 @@ public class AccountServiceImpl implements AccountService {
     }
 
 
-
     @Override
     @Transactional(readOnly = true)
     public AccountResponseDto getAccountByAlias(String alias) {
@@ -225,7 +222,6 @@ public class AccountServiceImpl implements AccountService {
 
        return accountMapper.toDto(account);
     }
-
 
 
 
@@ -266,13 +262,14 @@ public class AccountServiceImpl implements AccountService {
 
     private void validateAccountCanBeClosed(Account account) {
         if (account.getBalance().compareTo(BigDecimal.ZERO) > 0) {
+
             auditLogService.registerEvent(
                     account.getUsers().getId(),
-                    "Account closure rejected because balance is greater than zero. accountId="
+                    "Account closure rejected because balance is greater than zero. accountId= "
                             + account.getId()
-                    + ", balance=" + account.getBalance(),
-                    "CLOSE_ACCOUNT_REJECTED",
-                    "BANKING"
+                    + ", balance= " + account.getBalance(),
+                    AccountAuditAction.ACCOUNT_CLOSE_REJECTED,
+                    AuditType.ACCOUNT
             );
             throw new AccountStateException("Account cannot be deleted while balance is greater than zero");
         }
@@ -287,8 +284,8 @@ public class AccountServiceImpl implements AccountService {
                     account.getUsers().getId(),
                     "Account closure rejected because account has active loans. accountId="
                     + account.getId(),
-                    "CLOSE_ACCOUNT_REJECTED",
-                    "BANKING"
+                    AccountAuditAction.ACCOUNT_CLOSE_REJECTED,
+                    AuditType.ACCOUNT
             );
 
             throw new AccountStateException("Account cannot be closed while it has active loans");

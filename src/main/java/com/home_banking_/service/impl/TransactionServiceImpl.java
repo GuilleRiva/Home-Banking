@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.home_banking_.dto.request.*;
 import com.home_banking_.dto.response.TransactionResponseDto;
 import com.home_banking_.enums.*;
+import com.home_banking_.enums.audit.AuditType;
+import com.home_banking_.enums.audit.TransactionAuditAction;
 import com.home_banking_.exceptions.custom.*;
 import com.home_banking_.mappers.TransactionMapper;
 import com.home_banking_.model.Account;
@@ -225,10 +227,10 @@ public class TransactionServiceImpl implements TransactionService {
         auditLogService.registerEvent(
                 account.getUsers().getId(),
                 "Customer deposit completed. transactionId=" + savedTransaction.getId()
-                + ", accountId=" + account.getId()
-                + ", amount=" + dto.getAmount(),
-                "CUSTOMER_DEPOSIT_COMPLETED",
-                "TRANSACTION"
+                + ", accountId= " + account.getId()
+                + ", amount= " + dto.getAmount(),
+                TransactionAuditAction.CUSTOMER_DEPOSIT_COMPLETED,
+                AuditType.TRANSACTION
         );
 
         log.info("[CUSTOMER_DEPOSIT_SUCCESS] userEmail={} accountId={} transactionId={} amount={}",
@@ -289,12 +291,12 @@ public class TransactionServiceImpl implements TransactionService {
 
         auditLogService.registerEvent(
                 userId,
-                "Administrative credit completed. transactionId=" + savedTransaction.getId()
-                        + ", targetAccountId=" + account.getId()
-                        + ", amount=" + dto.getAmount()
-                        + ", reason=" + dto.getReason(),
-                "ADMIN_CREDIT_COMPLETED",
-                "TRANSACTION"
+                "Administrative credit completed. transactionId= " + savedTransaction.getId()
+                        + ", targetAccountId= " + account.getId()
+                        + ", amount= " + dto.getAmount()
+                        + ", reason= " + dto.getReason(),
+                TransactionAuditAction.ADMIN_CREDIT_COMPLETED,
+                AuditType.TRANSACTION
         );
 
         log.info("[ADMIN_CREDIT_SUCCESS] userEmail={}  accountId={} transactionId={} amount={}",
@@ -354,9 +356,9 @@ public class TransactionServiceImpl implements TransactionService {
 
         auditLogService.registerEvent(
                 requestUserId,
-                "Transaction history requested for userId=" + userId,
-                "USER_TRANSACTIONS_VIEWED",
-                "TRANSACTION"
+                "Transaction history requested for userId= " + userId,
+                TransactionAuditAction.USER_TRANSACTION_VIEWED,
+                AuditType.TRANSACTION
         );
 
         log.info("[FETCH_USER_TRANSACTIONS_SUCCESS] requesterEmail={} requestedUserId={} transactionSize={}",
@@ -391,9 +393,9 @@ public class TransactionServiceImpl implements TransactionService {
             auditLogService.registerEvent(
                     userId,
                     operation + " rejected because " + label.toLowerCase() + " account is not active. accountId="
-                    + acc.getId() + ", status=" + acc.getStatusAccount(),
-                    operation + "_REJECTED",
-                    "SECURITY"
+                    + acc.getId() + ", status= " + acc.getStatusAccount(),
+                    TransactionAuditAction.TRANSACTION_REJECTED,
+                    AuditType.TRANSACTION
             );
             throw new AccountStateException(label + " account is not active");
         }
@@ -423,10 +425,10 @@ public class TransactionServiceImpl implements TransactionService {
 
             auditLogService.registerEvent(
                     userId,
-                    "Transfer rejected: origin and destination accounts are the same. accountId=" +
+                    "Transfer rejected: origin and destination accounts are the same. accountId= " +
                             dto.getOriginAccountId(),
-                    "TRANSFER_REJECTED",
-                    "SECURITY"
+                    TransactionAuditAction.TRANSACTION_REJECTED,
+                    AuditType.TRANSACTION
             );
 
             throw new InvalidTransactionException("Origin and destination accounts must be different");
@@ -463,11 +465,11 @@ public class TransactionServiceImpl implements TransactionService {
 
             auditLogService.registerEvent(
                     userId,
-                    "Transfer rejected due to insufficient balance. originAccountId=" + origin.getId()
-                    + ", destinationAccountId=" + destination.getId()
-                    + ", amount=" + amount,
-                    "TRANSFER_REJECTED",
-                    "SECURITY"
+                    "Transfer rejected due to insufficient balance. originAccountId= " + origin.getId()
+                    + ", destinationAccountId= " + destination.getId()
+                    + ", amount= " + amount,
+                    TransactionAuditAction.TRANSACTION_REJECTED_INSUFFICIENT_BALANCE,
+                    AuditType.TRANSACTION
             );
 
             throw new InsufficientFundsException("Insufficient balance for transfer");
@@ -481,11 +483,11 @@ public class TransactionServiceImpl implements TransactionService {
 
             auditLogService.registerEvent(
                     userId,
-                    "Withdraw rejected due to insufficient balance. accountId=" + account.getId()
-                    + ", balance=" + account.getBalance()
-                    + ", amount=" + amount,
-                    "WITHDRAW_REJECTED",
-                    "SECURITY"
+                    "Withdraw rejected due to insufficient balance. accountId= " + account.getId()
+                    + ", balance= " + account.getBalance()
+                    + ", amount= " + amount,
+                    TransactionAuditAction.WITHDRAW_REJECTED_INSUFFICIENT_BALANCE,
+                    AuditType.TRANSACTION
             );
 
             throw new InsufficientFundsException("Insufficient balance for withdraw");
@@ -582,23 +584,23 @@ public class TransactionServiceImpl implements TransactionService {
     ) {
         auditLogService.registerEvent(
                 userId,
-                "Transfer completed successfully. transactionId=" + savedTx.getId()
-                + ", originAccountId=" + origin.getId()
-                + ", destinationAccountId=" + destination.getId()
-                + ", amount=" + amount,
-                "TRANSFER_COMPLETED",
-                "TRANSACTION"
+                "Transfer completed successfully. transactionId= " + savedTx.getId()
+                + ", originAccountId= " + origin.getId()
+                + ", destinationAccountId= " + destination.getId()
+                + ", amount= " + amount,
+                TransactionAuditAction.TRANSFER_COMPLETED,
+                AuditType.TRANSACTION
         );
     }
 
     private void registerWithdrawCompletedAudit(Long userId, Transaction savedTx, Account account, BigDecimal amount) {
         auditLogService.registerEvent(
                 userId,
-                "Withdraw completed successfully. transactionId=" + savedTx.getId()
-                + ", accountId=" + account.getId()
-                + ", amount=" + amount,
-                "WITHDRAW_COMPLETED",
-                "TRANSACTION"
+                "Withdraw completed successfully. transactionId= " + savedTx.getId()
+                + ", accountId= " + account.getId()
+                + ", amount= " + amount,
+                TransactionAuditAction.WITHDRAW_COMPLETED,
+                AuditType.TRANSACTION
         );
     }
 

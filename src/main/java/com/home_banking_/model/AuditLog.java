@@ -1,6 +1,6 @@
 package com.home_banking_.model;
 
-import com.home_banking_.enums.AuditType;
+import com.home_banking_.enums.audit.AuditType;
 import jakarta.persistence.*;
 import lombok.Data;
 

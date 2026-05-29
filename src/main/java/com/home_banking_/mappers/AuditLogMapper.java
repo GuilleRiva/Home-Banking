@@ -1,7 +1,7 @@
 package com.home_banking_.mappers;
 
 import com.home_banking_.dto.response.AuditLogResponseDto;
-import com.home_banking_.enums.AuditType;
+import com.home_banking_.enums.audit.AuditType;
 import com.home_banking_.model.AuditLog;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

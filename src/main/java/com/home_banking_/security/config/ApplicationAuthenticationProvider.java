@@ -21,21 +21,17 @@ public class ApplicationAuthenticationProvider implements AuthenticationProvider
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
 
-        //1. Obtiene email y password del request
         String email = authentication.getName();
         String rawPassword = authentication.getCredentials().toString();
 
 
-        //2. Busca al usuario en la base de datos
         UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
-        //3. Verifica la contraseña de BCrypt
-        if (!passwordEncoder.matches(rawPassword, userDetails.password())){
+        if (!passwordEncoder.matches(rawPassword, userDetails.getPassword())){
             throw new BadCredentialsException("Invalid email or password");
         }
 
 
-        //4. Si el válida, crea un token de autenticación
         return new UsernamePasswordAuthenticationToken(
                 userDetails,
                 null,

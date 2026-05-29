@@ -30,28 +30,6 @@ public class AuditLogController {
     private final AuditLogService auditLogService;
 
 
-    @Operation(
-            summary = "Register a new audit log",
-            description = "This method will register a new action audit log"
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "registered event successfully",
-            content = @Content(mediaType = "application/json",
-            schema = @Schema(implementation = AuditLogResponseDto.class))),
-            @ApiResponse(responseCode = "400", description = "Invalid request")
-    })
-    @PostMapping("/register")
-    @PreAuthorize("hasRole('AUDITOR')")
-    public ResponseEntity<Void> registerAuditLog(@RequestBody @Valid AuditLogResponseDto dto){
-        log.info("POST /api/audit/register - Logging audit event for userId: {} | Type: {} | Action: {}",
-                dto.getId(), dto.getType(), dto.getAction());
-
-        auditLogService.registerEvent(dto.getId(), dto.getType(), dto.getAction(), dto.getIpOrigin());
-
-        log.info("Audit event successfully logged for userID: {}", dto.getId());
-        return ResponseEntity.status(HttpStatus.CREATED).build();
-    }
-
 
     @Operation(
             summary = "Retrieve audit logs by user ID",

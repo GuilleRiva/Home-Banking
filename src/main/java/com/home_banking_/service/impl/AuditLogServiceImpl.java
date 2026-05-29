@@ -1,8 +1,9 @@
 package com.home_banking_.service.impl;
 
 import com.home_banking_.dto.response.AuditLogResponseDto;
-import com.home_banking_.enums.AuditType;
-import com.home_banking_.enums.PaymentAuditAction;
+import com.home_banking_.enums.audit.AuditAction;
+import com.home_banking_.enums.audit.AuditType;
+import com.home_banking_.enums.audit.LoanAuditAction;
 import com.home_banking_.exceptions.custom.BusinessException;
 import com.home_banking_.exceptions.custom.ResourceNotFoundException;
 import com.home_banking_.mappers.AuditLogMapper;
@@ -34,30 +35,22 @@ public class AuditLogServiceImpl implements AuditLogService {
     }
 
     @Override
-    public void registerEvent(Long userId, String message, String typeEvent, String type) {
+    public void registerEvent(Long userId, String message, AuditAction typeEvent, AuditType type) {
         log.info("[LOGGING_REGISTER_EVENT] audit event for userId={} ,TypeEvent={}, Type={}",
-                userId,typeEvent, type);
+                userId, typeEvent, type);
 
         Users users = usersRepository.findById(userId)
-                .orElseThrow(()->  new ResourceNotFoundException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         "User not found"
-                        ));
-
-        AuditType auditType;
-        try {
-            auditType = AuditType.valueOf(type.toUpperCase());
-        }catch (IllegalArgumentException e){
-            log.error("[LOG_ERROR_EVENT] Invalid audit type received: {}", type);
-            throw new BusinessException("Invalid audit type : " + type);
-        }
+                ));
 
         AuditLog logEntity = new AuditLog();
         logEntity.setUsers(users);
-        logEntity.setAction(typeEvent);
+        logEntity.setAction(typeEvent.name());
         logEntity.setDescription(message);
         logEntity.setDateTime(LocalDateTime.now());
         logEntity.setIpOrigin("127.0.0.1");
-        logEntity.setType(auditType);
+        logEntity.setType(type);
 
         auditLogRepository.save(logEntity);
         log.info("[AUDIT_REGISTERED_EVENT] event successfully logged for userId={}", userId);
@@ -94,8 +87,4 @@ public class AuditLogServiceImpl implements AuditLogService {
                 .toList();
     }
 
-    @Override
-    public void registerPaymentEvent(Long userId, String description,  PaymentAuditAction paymentAction, AuditType auditType) {
-        registerEvent(userId, description,paymentAction.name(), auditType.name());
-    }
 }

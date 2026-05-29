@@ -1,0 +1,16 @@
+package com.home_banking_.enums.audit;
+
+public enum AuthAuditAction implements AuditAction{
+    REFRESH_TOKEN_FAILED,
+    REFRESH_TOKEN_LOCKED,
+    REFRESH_TOKEN_PROCESSED_SUCCESSFULLY,
+    LOGOUT_SUCCESS,
+    PASSWORD_CHANGE_FAILED,
+    PASSWORD_CHANGED,
+    LOGIN_BLOCKED,
+    LOGIN_DENIED,
+    LOGIN_FAILED,
+    LOGIN_SUCCESS,
+    REGISTERED_SUCCESSFULLY,
+
+}

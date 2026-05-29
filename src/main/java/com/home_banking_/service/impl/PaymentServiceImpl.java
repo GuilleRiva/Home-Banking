@@ -6,6 +6,8 @@ import com.home_banking_.dto.request.PaymentRequestDto;
 import com.home_banking_.dto.request.ServicePaymentRequestDto;
 import com.home_banking_.dto.response.PaymentResponseDto;
 import com.home_banking_.enums.*;
+import com.home_banking_.enums.audit.AuditType;
+import com.home_banking_.enums.audit.PaymentAuditAction;
 import com.home_banking_.exceptions.custom.*;
 import com.home_banking_.mappers.PaymentMapper;
 import com.home_banking_.model.Account;
@@ -182,13 +184,13 @@ public class PaymentServiceImpl implements PaymentService {
         log.info("[PAYMENT_SERVICE_SUCCESS] userEmail={} accountId={} paymentId={} amount={}, serviceEntity={}",
                 email, account.getId(),savedPayment.getId(), savedPayment.getAmount(), savedPayment.getServiceEntity());
 
-        auditLogService.registerPaymentEvent(
+        auditLogService.registerEvent(
                 account.getUsers().getId(),
-                "Service payment completed. accountId=" + account.getId()
-                + ", serviceEntity=" + dto.getServiceEntity()
-                + ", amount=" + dto.getAmount(),
+                "Service payment completed. accountId= " + account.getId()
+                + ", serviceEntity= " + dto.getServiceEntity()
+                + ", amount= " + dto.getAmount(),
                 PaymentAuditAction.PAYMENT_COMPLETED,
-                AuditType.TRANSACTION
+                AuditType.PAYMENT
         );
 
         return paymentMapper.toDto(savedPayment);
@@ -225,7 +227,6 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
 
-
     private Account getOwnedAccount(Long accountId, String email) {
         return accountRepository.findByIdAndUsersEmail(accountId, email)
                 .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
@@ -247,11 +248,11 @@ public class PaymentServiceImpl implements PaymentService {
         if (account.getStatusAccount() != StatusAccount.ACTIVE) {
             log.warn("[PAYMENT_REJECTED] accountId={} reason= Account is not active", account.getId());
 
-            auditLogService.registerPaymentEvent(
+            auditLogService.registerEvent(
                     account.getUsers().getId(),
-                    "Rejected payment. accountId=" + account.getId() + ", reason=Inactive account",
+                    "Rejected payment. accountId= " + account.getId() + ", reason=Inactive account",
                     PaymentAuditAction.PAYMENT_REJECTED_INACTIVE_ACCOUNT,
-                    AuditType.TRANSACTION
+                    AuditType.PAYMENT
             );
             throw new AccountStateException("The account is not active");
         }
@@ -273,11 +274,11 @@ public class PaymentServiceImpl implements PaymentService {
             log.warn("[PAYMENT_REJECTED] accountId={} reason=Insufficient balance amount={} balance={}",
                     account.getId(), amount, account.getBalance());
 
-            auditLogService.registerPaymentEvent(
+            auditLogService.registerEvent(
                     account.getUsers().getId(),
-                    "Rejected payment. accountId=" + account.getId() + ", amount=" + amount + ", reason=Insufficient balance",
+                    "Rejected payment. accountId= " + account.getId() + ", amount= " + amount + ", reason=Insufficient balance",
                     PaymentAuditAction.PAYMENT_REJECTED_INSUFFICIENT_BALANCE,
-                    AuditType.TRANSACTION
+                    AuditType.PAYMENT
             );
             throw new InsufficientFundsException("Insufficient balance to make the payment");
         }
@@ -314,13 +315,14 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private void registerPaymentCompletedAudit(Account account, Payment payment) {
-        auditLogService.registerPaymentEvent(
+
+        auditLogService.registerEvent(
                 account.getUsers().getId(),
-                "Payment completed. paymentId=" + payment.getId()
-                        + ", accountId=" + account.getId()
-                        + ", amount=" + payment.getAmount(),
+                "Payment completed. paymentId= " + payment.getId()
+                        + ", accountId= " + account.getId()
+                        + ", amount= " + payment.getAmount(),
                 PaymentAuditAction.PAYMENT_COMPLETED,
-                AuditType.TRANSACTION
+                AuditType.PAYMENT
         );
     }
 

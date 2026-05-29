@@ -53,8 +53,10 @@ public class JwtService {
 
 
     public String generateToken(UserDetails userDetails) {
+
         log.info("### generateToken(UserDetails) CALLED ### subject={}, expMs={}",
                 userDetails.getUsername(),accessExpirationMs);
+
         Map<String, Object> claims = new HashMap<>();
         claims.put("roles", userDetails.getAuthorities()
                 .stream()
@@ -72,6 +74,7 @@ public class JwtService {
     }
 
     private String createToken(Map<String, Object> claims, String subject, long expirationMs){
+
         long now = System.currentTimeMillis();
         return Jwts.builder()
                 .setClaims(claims)
@@ -83,6 +86,7 @@ public class JwtService {
     }
 
     public boolean isTokenValid(String token){
+
        try {
            String username = extractUsername(token);
            return username != null && !isTokenExpired(token);

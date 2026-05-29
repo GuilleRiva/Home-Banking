@@ -7,6 +7,8 @@ import com.home_banking_.enums.IdempotencyOperation;
 import com.home_banking_.enums.Rol;
 import com.home_banking_.enums.JwtTokenType;
 import com.home_banking_.enums.UserStatus;
+import com.home_banking_.enums.audit.AuditType;
+import com.home_banking_.enums.audit.AuthAuditAction;
 import com.home_banking_.exceptions.custom.BusinessException;
 import com.home_banking_.model.IdempotencyRecord;
 import com.home_banking_.model.Users;
@@ -201,8 +203,8 @@ public class AuthServiceImpl implements AuthService{
             auditLogService.registerEvent(
                     users.getId(),
                     "Refresh token denied due to user status: " + users.getUserStatus(),
-                    "REFRESH_FAILED",
-                    "AUTH"
+                    AuthAuditAction.REFRESH_TOKEN_FAILED,
+                    AuditType.AUTH
             );
             throw new BusinessException("Authentication failed");
         }
@@ -213,8 +215,8 @@ public class AuthServiceImpl implements AuthService{
             auditLogService.registerEvent(
                     users.getId(),
                     "Refresh token denied because account is locked",
-                    "REFRESH_FAILED",
-                    "AUTH"
+                    AuthAuditAction.REFRESH_TOKEN_LOCKED,
+                    AuditType.AUTH
             );
             throw new BusinessException("Authentication failed");
         }
@@ -231,8 +233,8 @@ public class AuthServiceImpl implements AuthService{
         auditLogService.registerEvent(
                 users.getId(),
                 "Refresh token processed successfully",
-                "REFRESH_SUCCESS",
-                "AUTH"
+                AuthAuditAction.REFRESH_TOKEN_PROCESSED_SUCCESSFULLY,
+                AuditType.AUTH
         );
         log.info("Refresh token processed successfully. userId={}", users.getId());
 
@@ -258,8 +260,8 @@ public class AuthServiceImpl implements AuthService{
         storedToken.ifPresent(t -> auditLogService.registerEvent(
                 t.getUser().getId(),
                 "Logout completed successfully",
-                "LOGOUT_SUCCESS",
-                "AUTH"
+                AuthAuditAction.LOGOUT_SUCCESS,
+                AuditType.AUTH
         ));
         log.info("Logout completed successfully");
     }
@@ -275,10 +277,11 @@ public class AuthServiceImpl implements AuthService{
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
             log.warn("Password change failed due to invalid current password. userId={}, ip={}",
                     user.getId(), ipAddress);
+
             auditLogService.registerEvent(user.getId(),
                     "Failed attempt to change password from IP: " + ipAddress,
-                    "PASSWORD_CHANGE_FAILED",
-                    "SECURITY");
+                    AuthAuditAction.PASSWORD_CHANGE_FAILED,
+                    AuditType.AUTH);
             throw new BusinessException("Current password is incorrect");
         }
 
@@ -288,8 +291,8 @@ public class AuthServiceImpl implements AuthService{
             auditLogService.registerEvent(
                     user.getId(),
                     "Password change rejected because new password matches current password from IP: " + ipAddress,
-                    "PASSWORD_CHANGE_FAILED",
-                    "SECURITY");
+                    AuthAuditAction.PASSWORD_CHANGE_FAILED,
+                    AuditType.AUTH);
 
             throw new BusinessException("Authentication failed");
         }
@@ -302,8 +305,8 @@ public class AuthServiceImpl implements AuthService{
         String location = geoLocationService.getLocationFromIP(ipAddress);
         auditLogService.registerEvent(user.getId(),
                 "Password change successful from IP: " + ipAddress + "(" + location + ")",
-                "PASSWORD_CHANGED",
-                "SECURITY");
+                AuthAuditAction.PASSWORD_CHANGED,
+                AuditType.AUTH);
 
         log.info("Password changed successfully. userId={}, ip={}", user.getId(), ipAddress);
     }
@@ -380,8 +383,8 @@ public class AuthServiceImpl implements AuthService{
             auditLogService.registerEvent(
                     user.getId(),
                     "Blocked login attempt from IP: 129 ** ***",
-                    "LOGIN_BLOCKED",
-                    "AUTH"
+                    AuthAuditAction.LOGIN_BLOCKED,
+                    AuditType.AUTH
             );
 
             log.warn("[LOGIN_BLOCKED] userId={} ip={}", user.getId(), ipAddress);
@@ -415,8 +418,8 @@ public class AuthServiceImpl implements AuthService{
                 user.getId(),
                 "Login denied due to user status: " + user.getUserStatus()
                 + " from IP: 129 **** ",
-                "LOGIN_DENIED",
-                "AUTH"
+                AuthAuditAction.LOGIN_DENIED,
+                AuditType.AUTH
         );
 
         log.warn("[LOGIN_DENIED] reason=inactive_status userId={} status={} ip={}",
@@ -456,8 +459,8 @@ public class AuthServiceImpl implements AuthService{
         auditLogService.registerEvent(
                 user.getId(),
                 "Failed login attempt from IP: 129 ***",
-                "LOGIN_FAILED",
-                "AUTH"
+                AuthAuditAction.LOGIN_FAILED,
+                AuditType.AUTH
         );
 
         log.warn("[LOGIN_FAILED] userId={} attempts={} ip={}",
@@ -474,8 +477,8 @@ public class AuthServiceImpl implements AuthService{
         auditLogService.registerEvent(
                 user.getId(),
                 "Login attempt from suspicious IP: " + ipAddress,
-                "LOGIN_BLOCKED",
-                "AUTH"
+                AuthAuditAction.LOGIN_BLOCKED,
+                AuditType.AUTH
         );
 
         log.warn("[LOGIN_BLOCKED] reason= suspicious_ip userId={} ip={}",
@@ -511,8 +514,8 @@ public class AuthServiceImpl implements AuthService{
         auditLogService.registerEvent(
                 user.getId(),
                 "Successful login from IP: " + ipAddress + " (" + location + ")",
-                "LOGIN_SUCCESS",
-                "AUTH"
+                AuthAuditAction.LOGIN_SUCCESS,
+                AuditType.AUTH
         );
 
         log.info("[LOGIN_SUCCESS] userId={} ip={}", user.getId(), ipAddress);
@@ -558,8 +561,8 @@ public class AuthServiceImpl implements AuthService{
         auditLogService.registerEvent(
                 user.getId(),
                 "User registered successfully with status " + user.getUserStatus(),
-                "REGISTER_SUCCESS",
-                "AUTH"
+                AuthAuditAction.REGISTERED_SUCCESSFULLY,
+                AuditType.AUTH
         );
     }
 
