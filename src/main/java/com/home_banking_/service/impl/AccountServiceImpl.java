@@ -21,6 +21,7 @@ import com.home_banking_.service.idempotency.IdempotencyValidationResult;
 import com.home_banking_.service.security.CurrentUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -84,6 +85,8 @@ public class AccountServiceImpl implements AccountService {
 
         log.debug("[ACCOUNT_CREATE_MAPPING] authenticatedUserId={} authenticatedEmail={}", users.getId(), users.getEmail());
 
+        validateUserIsActive(users);
+
         String normalizedAlias = validateAndNormalizeAlias(dto.getAlias());
 
         validateAccountCreationRules(users.getId(), dto.getTypeAccount(), normalizedAlias);
@@ -117,7 +120,7 @@ public class AccountServiceImpl implements AccountService {
     }
 
 
-
+    
     @Transactional
     @Override
     public void deleteAccount(Long id) {
@@ -224,6 +227,13 @@ public class AccountServiceImpl implements AccountService {
     }
 
 
+    private void validateUserIsActive(Users user) {
+        if (user.getUserStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException(
+                    "Only active users can create bank accounts"
+            );
+        }
+    }
 
     private String validateAndNormalizeAlias(String alias) {
         if (alias == null || alias.isBlank()) {

@@ -163,7 +163,6 @@ public class PaymentServiceImpl implements PaymentService {
 
     private PaymentResponseDto executePayService(ServicePaymentRequestDto dto) {
         String email = currentUserService.getCurrentUserEmail();
-        Long userId = currentUserService.getCurrentUserId();
 
         log.info("[PAYMENT_SERVICE_INIT] userEmail={} accountId={} amount={} serviceEntity={}",
                 email,dto.getAccountId(), dto.getAmount(), dto.getServiceEntity());

@@ -385,6 +385,7 @@ public class TransactionServiceImpl implements TransactionService {
         }
     }
 
+
     private void validateAccountActive(Account acc, String label, String operation, Long userId) {
         if (acc.getStatusAccount() != StatusAccount.ACTIVE) {
             log.warn("[{}_REJECTED] {} account is not active. userId={} accountId={} status={}",
@@ -414,6 +415,7 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     private void validateTransferRequest(TransactionRequestDto dto, String email, Long userId) {
+
         validateAmount(dto.getAmount());
 
         if (dto.getOriginAccountId() == null) {
@@ -430,7 +432,6 @@ public class TransactionServiceImpl implements TransactionService {
                     TransactionAuditAction.TRANSACTION_REJECTED,
                     AuditType.TRANSACTION
             );
-
             throw new InvalidTransactionException("Origin and destination accounts must be different");
         }
     }
@@ -460,7 +461,7 @@ public class TransactionServiceImpl implements TransactionService {
             Long userId
     ) {
         if (origin.getBalance().compareTo(amount) > 0) {
-            log.warn("[TRANSFER_REJECTED] reason=insufficient_balance originAccountId={} balance={} requiredAmounr={}",
+            log.warn("[TRANSFER_REJECTED] reason=insufficient_balance originAccountId={} balance={} requiredAmount={}",
                     origin.getId(), origin.getBalance(),amount);
 
             auditLogService.registerEvent(

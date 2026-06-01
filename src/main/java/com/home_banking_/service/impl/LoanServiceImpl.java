@@ -74,7 +74,7 @@ public class LoanServiceImpl implements LoanService {
         validateAmount(amount);
         validateLoanRequest(dto.getAmount(), dto.getInstallments());
 
-        Account account = getOwnedAccount(dto.getAccountId(), email);
+        Account account = getOwnedAccountForUpdate(dto.getAccountId(), email);
 
         validateAndTraceActiveAccount(account, "LOAN_SIMULATION","LOAN_SIMULATION_REJECTED", userId);
 

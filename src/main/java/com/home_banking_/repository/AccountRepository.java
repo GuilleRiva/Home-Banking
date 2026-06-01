@@ -22,18 +22,15 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
     long countByUsersId(Long userId);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     boolean existsByUsersIdAndTypeAccount(Long userId, TypeAccount typeAccount);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Account> findByAliasAndUsersEmail(String alias, String email);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from Account a where a.id = :id")
     Optional<Account> findByIdForUpdate(@Param("id") Long id);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select a from Account a where a.id= :id and users.email =:email")
+    @Query("select a from Account a where a.id = :id and a.users.email = :email")
     Optional<Account> findByIdAndUsersEmail(@Param("id") Long id, @Param("email") String email);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
