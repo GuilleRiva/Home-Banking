@@ -1,6 +1,7 @@
 package com.home_banking_.controllers;
 
 import com.home_banking_.dto.request.LoanGrantRequestDto;
+import com.home_banking_.dto.request.LoanRequestDto;
 import com.home_banking_.dto.request.LoanSimulationRequestDto;
 import com.home_banking_.dto.response.LoanResponseDto;
 import com.home_banking_.exceptions.custom.ResourceNotFoundException;
@@ -65,16 +66,15 @@ public class LoanController {
                             schema = @Schema(implementation = LoanResponseDto.class))),
             @ApiResponse(responseCode = "400", description = "Invalid loan request")
     })
-    @PostMapping("/grant")
+    @PostMapping("/{loanId}/grant")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<LoanResponseDto> grantLoan(
             @RequestHeader(IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
-            @Valid @RequestBody LoanGrantRequestDto dto){
+            @PathVariable Long loanId){
 
-        LoanResponseDto granted = loanService.grantLoan(idempotencyKey, dto);
+        LoanResponseDto response = loanService.grantLoan(idempotencyKey, loanId);
 
-        log.info("Loan successfully granted for ID account: {}", dto.getAccountId());
-        return new ResponseEntity<>(granted, HttpStatus.CREATED);
+       return ResponseEntity.ok(response);
     }
 
 
@@ -82,7 +82,7 @@ public class LoanController {
     @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<LoanResponseDto> requestLoan(
             @RequestHeader(IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
-            @Valid @RequestBody LoanGrantRequestDto dto
+            @Valid @RequestBody LoanRequestDto dto
     ) {
         LoanResponseDto response = loanService.requestLoan(idempotencyKey,dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);

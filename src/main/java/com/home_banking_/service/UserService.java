@@ -10,7 +10,7 @@ import java.util.List;
 
 public interface UserService {
 
-    UserResponseDto findById(Long id);
+    UserResponseDto getUserById(Long id);
 
     UserResponseDto findByEmail(String email);
 

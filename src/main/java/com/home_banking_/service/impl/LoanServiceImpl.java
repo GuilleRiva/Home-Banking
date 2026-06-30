@@ -3,6 +3,7 @@ package com.home_banking_.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.home_banking_.dto.request.LoanGrantRequestDto;
+import com.home_banking_.dto.request.LoanRequestDto;
 import com.home_banking_.dto.request.LoanSimulationRequestDto;
 import com.home_banking_.dto.response.LoanResponseDto;
 import com.home_banking_.enums.IdempotencyOperation;
@@ -70,11 +71,9 @@ public class LoanServiceImpl implements LoanService {
         log.info("[LOAN_SIMULATION_INIT] userEmail={} accountId={} amount={} installments={}",
                 email, dto.getAccountId(), dto.getAmount(), dto.getInstallments());
 
-        BigDecimal amount = dto.getAmount();
-        validateAmount(amount);
-        validateLoanRequest(dto.getAmount(), dto.getInstallments());
+        validateLoanParameters(dto.getAmount(), dto.getInstallments());
 
-        Account account = getOwnedAccountForUpdate(dto.getAccountId(), email);
+        Account account = getOwnedAccount(dto.getAccountId(), email);
 
         validateAndTraceActiveAccount(account, "LOAN_SIMULATION","LOAN_SIMULATION_REJECTED", userId);
 
@@ -83,50 +82,35 @@ public class LoanServiceImpl implements LoanService {
         log.info("[LOAN_SIMULATION_SUCCESS] userEmail={} accountId={} amount={} installments={} totalToPay={}",
                 email, dto.getAccountId(), dto.getAmount(), dto.getInstallments(), simulatedLoan.getTotalToPay());
 
-        auditLogService.registerEvent(
-                userId,
-                "Loan simulation completed successfully. accountId= " + account.getId()
-                        + ", amount= " + dto.getAmount()
-                + ", installments= " + dto.getInstallments()
-                + ", totalToPay= " + simulatedLoan.getTotalToPay(),
-                LoanAuditAction.LOAN_SIMULATION_COMPLETED,
-                AuditType.LOAN
-        );
         return loanMapper.toDto(simulatedLoan);
+
     }
+
 
     @Transactional
     @Override
-    public LoanResponseDto grantLoan(String idempotencyKey, LoanGrantRequestDto dto) {
+    public LoanResponseDto grantLoan(String idempotencyKey, Long loanId) {
         Long userId = currentUserService.getCurrentUserId();
 
-        log.info("[LOAN_GRANT_IDEMPOTENCY_INIT] userId={} accountId={} amount={} installments={}",
-                userId, dto.getAccountId(), dto.getAmount(), dto.getInstallments());
 
         IdempotencyValidationResult result = idempotencyService.validateAndRegister(
                 idempotencyKey,
                 userId,
                 IdempotencyOperation.LOAN_GRANT,
-                dto
+                loanId
         );
 
         if (result.isReplay()) {
-            log.info("[LOAN_GRANT_IDEMPOTENCY_REPLAY] userId={} accountId={}",
-                    userId, dto.getAccountId());
-
             return deserializeLoanResponse(result.getRecord().getResponseBody());
         }
 
         if (result.isProcessing()) {
-            log.warn("[LOAN_GRANT_IDEMPOTENCY_PROCESSING] userId={} accountId={} recordId={}",
-                    userId, dto.getAccountId(), result.getRecord().getId());
-
             throw new BusinessException("This loan request is currently being processed");
         }
 
         return idempotencyService.executeAndComplete(
                 result.getRecord(),
-                ()-> executeGrantLoan(dto),
+                ()-> executeGrantLoan(loanId),
                 LoanResponseDto::getId,
                 HttpStatus.CREATED,
                 "Unexpected error during loan grant"
@@ -134,24 +118,21 @@ public class LoanServiceImpl implements LoanService {
     }
 
 
-    private LoanResponseDto executeGrantLoan(LoanGrantRequestDto dto) {
-        String email = currentUserService.getCurrentUserEmail();
+    private LoanResponseDto executeGrantLoan(Long loanId) {
         Long userId = currentUserService.getCurrentUserId();
 
-        log.info("[LOAN_GRANT_INIT] userEmail={} accountId={} amount={} installments={}",
-                email, dto.getAccountId(), dto.getAmount(), dto.getInstallments());
-
-        validateLoanGrantRequest(dto);
-
-        Account account = getOwnedAccount(dto.getAccountId(), email);
+        Loan loan = getPendingLoanForUpdate(loanId);
+        Account account = loan.getAccount();
 
         validateAndTraceActiveAccount(account,"LOAN_GRANT", "LOAN_REJECTED", userId);
 
-        validateAccountCanReceiveLoan(account, userId);
+        LocalDateTime now = LocalDateTime.now();
 
-        Loan loan = buildGrantedLoan(dto,account);
+        loan.setLoanStatus(LoanStatus.ACTIVE);
+        loan.setStartDate(now);
+        loan.setEndDate(now.plusMonths(loan.getInstallments()));
 
-        account.setBalance(account.getBalance().add(dto.getAmount()));
+        account.setBalance(account.getBalance().add(loan.getAmount()));
 
         accountRepository.save(account);
         Loan savedLoan = loanRepository.save(loan);
@@ -160,7 +141,8 @@ public class LoanServiceImpl implements LoanService {
                 userId,
                 "Loan granted successfully. loanId= " + savedLoan.getId()
                         + ", accountId= " + account.getId()
-                        + ", installments= " + savedLoan.getInstallments(),
+                        + ", installments= " + savedLoan.getInstallments()
+                        + ", amount= " + savedLoan.getAmount(),
                 LoanAuditAction.LOAN_GRANTED,
                 AuditType.LOAN
         );
@@ -180,7 +162,7 @@ public class LoanServiceImpl implements LoanService {
 
     @Transactional
     @Override
-    public LoanResponseDto requestLoan(String idempotencyKey, LoanGrantRequestDto dto)  {
+    public LoanResponseDto requestLoan(String idempotencyKey,  LoanRequestDto dto)  {
         Long userId = currentUserService.getCurrentUserId();
 
         IdempotencyValidationResult result = idempotencyService.validateAndRegister(
@@ -208,14 +190,14 @@ public class LoanServiceImpl implements LoanService {
     }
 
 
-    private LoanResponseDto executeRequestLoan (LoanGrantRequestDto dto) {
+    private LoanResponseDto executeRequestLoan ( LoanRequestDto dto) {
         String email = currentUserService.getCurrentUserEmail();
         Long userId = currentUserService.getCurrentUserId();
 
         log.info("[LOAN_REQUEST_INIT] userEmail={} accountId={} amount={} installments={}",
                 email, dto.getAccountId(), dto.getAmount(), dto.getInstallments());
 
-        validateLoanGrantRequest(dto);
+        validateLoanRequest(dto);
 
         Account account = getOwnedAccountForUpdate(dto.getAccountId(), email);
 
@@ -223,9 +205,7 @@ public class LoanServiceImpl implements LoanService {
 
         validateAccountCanReceiveLoan(account,userId);
 
-        LocalDateTime now = LocalDateTime.now();
-
-        Loan loan = buildGrantedLoan(dto,account);
+        Loan loan = buildPendingLoan(dto,account);
 
         Loan savedLoan = loanRepository.save(loan);
 
@@ -273,6 +253,9 @@ public class LoanServiceImpl implements LoanService {
     }
 
 
+
+
+
     private Loan buildLoanFromDto(BigDecimal amount, Integer installments, Account account) {
         BigDecimal interestRate = DEFAULT_INTEREST_RATE;
         BigDecimal totalToPay = amount.add(amount.multiply(interestRate));
@@ -285,17 +268,53 @@ public class LoanServiceImpl implements LoanService {
         loan.setInterestRate(interestRate);
         loan.setTotalToPay(totalToPay);
         loan.setInstallmentsAmount(installmentAmount);
+        loan.setCurrency(account.getCurrency());
         return loan;
     }
 
-    private Loan buildGrantedLoan(LoanGrantRequestDto dto, Account account) {
+    private Loan buildPendingLoan(LoanRequestDto dto, Account account) {
         Loan loan = buildLoanFromDto(dto.getAmount(),dto.getInstallments(), account);
-        LocalDateTime now = LocalDateTime.now();
 
-        loan.setLoanStatus(LoanStatus.ACTIVE);
-        loan.setStartDate(now);
-        loan.setEndDate(now.plusMonths(dto.getInstallments()));
+        loan.setAccount(account);
+        loan.setLoanStatus(LoanStatus.PENDING);
         loan.setCurrency(account.getCurrency());
+        loan.setStartDate(null);
+        loan.setEndDate(null);
+
+        return loan;
+    }
+
+
+    private Loan buildLoanBase(BigDecimal amount, Integer installments, Account account) {
+        BigDecimal interestRate = DEFAULT_INTEREST_RATE;
+        BigDecimal totalToPay = amount.add(amount.multiply(interestRate));
+        BigDecimal installmentAmount = totalToPay.divide(
+                BigDecimal.valueOf(installments),
+                2,
+                RoundingMode.HALF_UP
+        );
+
+        Loan loan = new Loan();
+        loan.setAccount(account);
+        loan.setAmount(amount);
+        loan.setInstallments(installments);
+        loan.setInterestRate(interestRate);
+        loan.setTotalToPay(totalToPay);
+        loan.setInstallmentsAmount(installmentAmount);
+        loan.setCurrency(account.getCurrency());
+
+        return loan;
+    }
+
+
+
+    private Loan getPendingLoanForUpdate(Long loanId) {
+        Loan loan = loanRepository.findByIdForUpdate(loanId)
+                .orElseThrow(() -> new ResourceNotFoundException("Loan not found"));
+
+        if (loan.getLoanStatus() != LoanStatus.PENDING) {
+            throw new BusinessException("Only pending loans can be granted");
+        }
 
         return loan;
     }
@@ -306,7 +325,7 @@ public class LoanServiceImpl implements LoanService {
     }
 
 
-    private void validateLoanRequest(BigDecimal amount, Integer installments) {
+    private void validateLoanParameters(BigDecimal amount, Integer installments) {
 
         if (amount== null || amount.compareTo(BigDecimal.ZERO) <=0) {
             throw new BusinessException("Loan amount must be greater than zero");
@@ -322,11 +341,11 @@ public class LoanServiceImpl implements LoanService {
         }
     }
 
-
-    private void validateLoanGrantRequest(LoanGrantRequestDto dto) {
+    private void validateLoanRequest(LoanRequestDto dto) {
         validateAmount(dto.getAmount());
-        validateLoanRequest(dto.getAmount(), dto.getInstallments());
+        validateLoanParameters(dto.getAmount(), dto.getInstallments());
     }
+
 
 
     private void validateAccountCanReceiveLoan(Account account, Long userId){

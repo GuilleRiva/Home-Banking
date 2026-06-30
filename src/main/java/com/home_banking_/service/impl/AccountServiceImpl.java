@@ -304,8 +304,8 @@ public class AccountServiceImpl implements AccountService {
 
 
     private Account getOwnedAccount(Long accountId, String email) {
-        return accountRepository.findByIdAndUsersEmail(accountId, email)
-                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+        return accountRepository.findByIdAndUsersEmail(accountId,email)
+                .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
     }
 
 
@@ -316,8 +316,8 @@ public class AccountServiceImpl implements AccountService {
 
 
     private Account getOwnedAccountByAlias(String alias, String email) {
-        return accountRepository.findByAliasAndUsersEmail(alias, email)
-                .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
+       return accountRepository.findByAliasAndUsersEmail(alias,email)
+               .orElseThrow(()-> new ResourceNotFoundException("Account not found"));
     }
 
 

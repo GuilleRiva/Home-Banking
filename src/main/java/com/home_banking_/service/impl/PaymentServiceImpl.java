@@ -238,10 +238,12 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setAmount(dto.getAmount());
         payment.setAccount(account);
         payment.setPaymentDate(LocalDateTime.now());
+        payment.setServiceEntity(dto.getServiceEntity());
         payment.setStatusPayment(StatusPayment.COMPLETED);
 
         return payment;
     }
+
 
     private void validateAccountActive(Account account) {
         if (account.getStatusAccount() != StatusAccount.ACTIVE) {

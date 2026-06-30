@@ -11,7 +11,7 @@ import org.mapstruct.Named;
 @Mapper(componentModel = "spring")
 public interface LoanMapper {
 
-    @Mapping(target = "statusLoan", source = "loanStatus", qualifiedByName = "loanStatusToString")
+    @Mapping(target = "statusLoan", source = "loanStatus")
     LoanResponseDto toDto(Loan loan);
 
     @Mapping(target = "id", ignore = true)
@@ -20,6 +20,9 @@ public interface LoanMapper {
     @Mapping(target = "installmentsAmount", ignore = true)
     @Mapping(target = "startDate", ignore = true)
     @Mapping(target = "endDate", ignore = true)
+    @Mapping(target = "currency", ignore = true)
+    @Mapping(target = "loanStatus", ignore = true)
+    @Mapping(target = "account", ignore = true)
     Loan toEntity(LoanSimulationRequestDto dto);
 
 

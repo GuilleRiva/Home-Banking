@@ -460,7 +460,7 @@ public class TransactionServiceImpl implements TransactionService {
             BigDecimal amount,
             Long userId
     ) {
-        if (origin.getBalance().compareTo(amount) > 0) {
+        if (origin.getBalance().compareTo(amount) < 0) {
             log.warn("[TRANSFER_REJECTED] reason=insufficient_balance originAccountId={} balance={} requiredAmount={}",
                     origin.getId(), origin.getBalance(),amount);
 

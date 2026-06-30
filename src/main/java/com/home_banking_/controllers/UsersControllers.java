@@ -67,16 +67,14 @@ UsersControllers {
             @ApiResponse(responseCode = "404", description = "User not found")
     })
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN' , 'EMPLOYED','AUDITOR')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserResponseDto> getUserById(
             @Parameter(name = "userId", description = "Unique identifier of the user", required = true)
             @PathVariable Long id){
 
         log.info("GET /api/users/{} - Searching for user", id);
 
-        UserResponseDto users = userService.findById(id);
-        log.info("User not found: {}", users.getEmail());
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(userService.getUserById(id));
 
     }
 

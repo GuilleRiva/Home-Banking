@@ -1,6 +1,5 @@
 package com.home_banking_.dto.request;
 
-import com.fasterxml.jackson.databind.annotation.JsonAppend;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;

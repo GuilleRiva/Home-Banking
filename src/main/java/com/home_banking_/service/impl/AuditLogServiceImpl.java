@@ -3,7 +3,6 @@ package com.home_banking_.service.impl;
 import com.home_banking_.dto.response.AuditLogResponseDto;
 import com.home_banking_.enums.audit.AuditAction;
 import com.home_banking_.enums.audit.AuditType;
-import com.home_banking_.enums.audit.LoanAuditAction;
 import com.home_banking_.exceptions.custom.BusinessException;
 import com.home_banking_.exceptions.custom.ResourceNotFoundException;
 import com.home_banking_.mappers.AuditLogMapper;
@@ -14,6 +13,7 @@ import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.AuditLogService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -57,10 +57,20 @@ public class AuditLogServiceImpl implements AuditLogService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<AuditLogResponseDto> getLogsByUser(Long userId) {
 
+        if (userId == null) {
+            throw new BusinessException("User ID is required");
+        }
+
+        if (!usersRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("User not found");
+        }
+
         List<AuditLog> logs = auditLogRepository.findByUsers_IdOrderByDateTimeDesc(userId);
-        log.debug("Total logs found for user ID {}: {}", userId, logs.size());
+
+        log.info("[AUDIT_LOGS_FETCH_BY_USER] userId={} totalLogs={}", userId, logs.size());
 
         return logs.stream()
                 .map(auditLogMapper::toDTO)
@@ -68,6 +78,7 @@ public class AuditLogServiceImpl implements AuditLogService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<AuditLogResponseDto> getLogsByType(String type) {
 
         AuditType auditType;
