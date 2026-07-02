@@ -12,11 +12,17 @@ public interface AccountService {
 
     List<AccountResponseDto> getAll();
 
-    AccountResponseDto getAccountById(Long id);
+    AccountResponseDto getAccountByIdForAdmin(Long id);
 
-    BigDecimal getBalance(Long accountId);
+    BigDecimal getAccountBalanceByIdForAdmin(Long accountId);
 
-    AccountResponseDto getAccountByAlias(String alias);
+    AccountResponseDto getAccountByAliasForAdmin(String alias);
 
     void deleteAccount(Long id);
+
+    AccountResponseDto getMyAccountById(Long accountId);
+
+    BigDecimal getMyAccountBalance(Long accountId);
+
+    AccountResponseDto getMyAccountByAlias(String alias);
 }

@@ -313,16 +313,16 @@ public class TransactionServiceImpl implements TransactionService {
 
         log.info("[FETCH_ACCOUNT_TRANSACTIONS_INIT] userEmail={} accountId={}",  email,accountId);
 
-        Account account = getOwnedAccountForUpdate(accountId, email);
+        validateAccountId(accountId);
 
-        List<Transaction> transactions = transactionRepository.findMyTransactionsByAccount(email, accountId);
+        List<Transaction> transactions = transactionRepository.findByAccountId(accountId);
 
         log.info("[FETCH_ACCOUNT_TRANSACTIONS_SUCCESS] userEmail={} accountId={} transactionSize={}"
                 ,email, accountId, transactions.size());
 
         return transactions.stream()
                 .map(transactionMapper::toDto)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -346,27 +346,19 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     public List<TransactionResponseDto> getTransactionsByUser(Long userId) {
         String requesterEmail = currentUserService.getCurrentUserEmail();
-        Long requestUserId = currentUserService.getCurrentUserId();
 
         log.info("[FETCH_USER_TRANSACTIONS_INIT] requesterEmail={} requestedUserId={}", requesterEmail, userId);
 
-       Account account= getOwnedAccountForUpdate(requestUserId, requesterEmail);
+        validateUserId(userId);
 
         List<Transaction> transactions = transactionRepository.findAllByUserId(userId);
-
-        auditLogService.registerEvent(
-                requestUserId,
-                "Transaction history requested for userId= " + userId,
-                TransactionAuditAction.USER_TRANSACTION_VIEWED,
-                AuditType.TRANSACTION
-        );
 
         log.info("[FETCH_USER_TRANSACTIONS_SUCCESS] requesterEmail={} requestedUserId={} transactionSize={}",
                 requesterEmail, userId, transactions.size());
 
         return transactions.stream()
                 .map(transactionMapper::toDto)
-                .collect(Collectors.toList());
+                .toList();
     }
 
 
@@ -382,6 +374,26 @@ public class TransactionServiceImpl implements TransactionService {
         }
         if (amount.scale() > 2) {
             throw new BusinessException("Amount must have at most 2 decimal places");
+        }
+    }
+
+    private void validateUserId(Long userId){
+        if (userId == null) {
+            throw new BusinessException("User ID is required");
+        }
+
+        if (!usersRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("User not found");
+        }
+    }
+
+    private void validateAccountId(Long accountId){
+        if (accountId == null){
+            throw new BusinessException("Account ID is required");
+        }
+
+        if (!accountRepository.existsById(accountId)){
+            throw new ResourceNotFoundException("Account not found");
         }
     }
 

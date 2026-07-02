@@ -70,7 +70,7 @@ public class AccountController {
             @PathVariable Long accountId){
 
         log.info("GET /api/accounts/{} - Fetching account", accountId);
-        AccountResponseDto account = accountService.getAccountById(accountId);
+        AccountResponseDto account = accountService.getAccountByIdForAdmin(accountId);
 
         log.info("Account found. ID: {}", accountId);
         return ResponseEntity.ok(account);
@@ -96,7 +96,7 @@ public class AccountController {
             @PathVariable Long accountId){
 
         log.info("GET /api/accounts/{}/balance - Checking account balance", accountId);
-        BigDecimal balance = accountService.getBalance(accountId);
+        BigDecimal balance = accountService.getAccountBalanceByIdForAdmin(accountId);
         log.info("Balance successfully obtained for account ID: {}", accountId);
       return ResponseEntity.ok(balance);
 
@@ -120,10 +120,29 @@ public class AccountController {
             @PathVariable String alias){
 
         log.info("GET /api/accounts/alias/{} - Querying account ", alias);
-        AccountResponseDto account = accountService.getAccountByAlias(alias);
+        AccountResponseDto account = accountService.getAccountByAliasForAdmin(alias);
         log.info("Account found with alias: {}", alias);
 
         return ResponseEntity.ok(account);
+    }
+
+
+    @GetMapping("/me/{accountId}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<AccountResponseDto> getMyAccountById(@PathVariable Long accountId) {
+        return ResponseEntity.ok(accountService.getMyAccountById(accountId));
+    }
+
+    @GetMapping("/me/{accountId}/balance")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<BigDecimal> getMyAccountBalance(@PathVariable Long accountId) {
+        return ResponseEntity.ok(accountService.getMyAccountBalance(accountId));
+    }
+
+    @GetMapping("/me/alias/{alias}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<AccountResponseDto> getMyAccountByAlias(@PathVariable String alias) {
+        return ResponseEntity.ok(accountService.getMyAccountByAlias(alias));
     }
 
 

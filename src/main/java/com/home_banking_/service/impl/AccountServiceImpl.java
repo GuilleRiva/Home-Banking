@@ -21,7 +21,6 @@ import com.home_banking_.service.idempotency.IdempotencyValidationResult;
 import com.home_banking_.service.security.CurrentUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -182,27 +181,32 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     @Transactional(readOnly = true)
-    public AccountResponseDto getAccountById(Long id) {
-        String email = currentUserService.getCurrentUserEmail();
+    public AccountResponseDto getAccountByIdForAdmin(Long accountId) {
 
-        log.info("[ACCOUNT_FETCH_BY_ID_INIT] userEmail={} accountId={}", email, id);
+        String requesterEmail = currentUserService.getCurrentUserEmail();
 
-        Account account = getOwnedAccount(id,email);
+        log.info("[ADMIN_ACCOUNT_FETCH_BY_ID_INIT] requesterEmail={} accountId={}",
+                requesterEmail, accountId);
 
-        log.info("[ACCOUNT_FETCH_BY_ID_SUCCESS] userEmail={} accountId{} status={}",
-                email, account.getId(), account.getStatusAccount());
+        Account account = getAccountByIdOrThrow(accountId);
+
+        log.info("[ADMIN_ACCOUNT_FETCH_BY_ID_SUCCESS] requesterEmail={} accountId={} status={}",
+                requesterEmail,
+                account.getId(),
+                account.getStatusAccount());
+
         return accountMapper.toDto(account);
     }
 
 
     @Override
     @Transactional(readOnly = true)
-    public BigDecimal getBalance(Long accountId) {
+    public BigDecimal getAccountBalanceByIdForAdmin(Long accountId) {
         String email = currentUserService.getCurrentUserEmail();
 
         log.info("[ACCOUNT_BALANCE_FETCH_INIT] userEmail={} accountId={}", email,accountId);
 
-        Account account = getOwnedAccount(accountId, email);
+        Account account = getAccountByIdOrThrow(accountId);
 
         log.info("[ACCOUNT_BALANCE_FETCH_SUCCESS] userEmail={} accountId={} balance={}",
                 email, account.getId(), account.getBalance());
@@ -213,17 +217,67 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     @Transactional(readOnly = true)
-    public AccountResponseDto getAccountByAlias(String alias) {
+    public AccountResponseDto getAccountByAliasForAdmin(String alias) {
+        String requesterEmail = currentUserService.getCurrentUserEmail();
+        String maskedAlias = maskAlias(alias);
+
+        log.info("[ACCOUNT_FETCH_BY_ALIAS_INIT] userEmail={} alias={}", requesterEmail, maskedAlias);
+
+        Account account = getAccountByAliasOrThrow(alias);
+
+       log.info("[ACCOUNT_FETCH_BY_ALIAS_SUCCESS] userEmail={} accountId={} alias={}",
+               requesterEmail, account.getId(), maskedAlias);
+
+       return accountMapper.toDto(account);
+    }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public AccountResponseDto getMyAccountById(Long accountId) {
+        String email = currentUserService.getCurrentUserEmail();
+
+        log.info("[CLIENT_ACCOUNT_FETCH_BY_ID_INIT] userEmail={} accountId={}", email, accountId);
+
+        Account account = getOwnedAccount(accountId, email);
+
+        log.info("[CLIENT_ACCOUNT_FETCH_BY_ID_SUCCESS] userEmail={} accountId={} status={}",
+                email, account.getId(), account.getStatusAccount());
+
+        return accountMapper.toDto(account);
+    }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal getMyAccountBalance(Long accountId) {
+        String email = currentUserService.getCurrentUserEmail();
+
+        log.info("[CLIENT_ACCOUNT_BALANCE_FETCH_INIT] userEmail={} accountId={}", email, accountId);
+
+        Account account = getOwnedAccount(accountId, email);
+
+        log.info("[CLIENT_ACCOUNT_BALANCE_FETCH_SUCCESS] userEmail={} accountId={} balance={}",
+                email, account.getId(), account.getBalance());
+
+        return account.getBalance();
+    }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public AccountResponseDto getMyAccountByAlias(String alias) {
         String email = currentUserService.getCurrentUserEmail();
         String maskedAlias = maskAlias(alias);
 
-        log.info("[ACCOUNT_FETCH_BY_ALIAS_INIT] userEmail={} alias={}", email, maskedAlias);
+        log.info("[CLIENT_ACCOUNT_FETCH_BY_ALIAS_INIT] userEmail={} alias={}", email, maskedAlias);
 
-       Account account =getOwnedAccountByAlias(alias, email);
-       log.info("[ACCOUNT_FETCH_BY_ALIAS_SUCCESS] userEmail={} accountId={} alias={}",
-               email, account.getId(), maskedAlias);
+        Account account = getOwnedAccountByAlias(alias, email);
 
-       return accountMapper.toDto(account);
+        log.info("[CLIENT_ACCOUNT_FETCH_BY_ALIAS_SUCCESS] userEmail={} accountId={} alias={}",
+                email, account.getId(), maskedAlias);
+
+        return accountMapper.toDto(account);
     }
 
 
@@ -232,6 +286,18 @@ public class AccountServiceImpl implements AccountService {
             throw new BusinessException(
                     "Only active users can create bank accounts"
             );
+        }
+    }
+
+    private void validateAccountId(Long accountId){
+        if (accountId == null) {
+            throw new BusinessException("Account ID is required");
+        }
+    }
+
+    private void validateAlias(String alias) {
+        if (alias == null || alias.isBlank()) {
+            throw new BusinessException("Alias is required");
         }
     }
 
@@ -300,6 +366,20 @@ public class AccountServiceImpl implements AccountService {
 
             throw new AccountStateException("Account cannot be closed while it has active loans");
         }
+    }
+
+    private Account getAccountByIdOrThrow(Long accountId) {
+        validateAccountId(accountId);
+
+        return accountRepository.findById(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+    }
+
+    private Account getAccountByAliasOrThrow(String alias) {
+        validateAlias(alias);
+
+        return accountRepository.findByAlias(alias)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
     }
 
 
