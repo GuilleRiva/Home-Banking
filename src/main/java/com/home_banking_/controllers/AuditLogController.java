@@ -42,7 +42,7 @@ public class AuditLogController {
             @ApiResponse(responseCode = "404", description = "logs by user not found")
     })
     @GetMapping("/user/{userId}")
-    @PreAuthorize("hasRole('AUDITOR')")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'AUDITOR')")
     public ResponseEntity<List<AuditLogResponseDto>> getLogsByUser(
             @Parameter(name = "userId", description = "unique identifier of the user", required = true)
             @PathVariable Long userId){
@@ -67,7 +67,7 @@ public class AuditLogController {
             @ApiResponse(responseCode = "404", description = "logs by type not found")
     })
     @GetMapping("/type/{type}")
-    @PreAuthorize("hasRole('AUDITOR')")
+    @PreAuthorize("hasAnyRole('ADMIN' , 'AUDITOR')")
     public ResponseEntity<List<AuditLogResponseDto>> getLogsByType(
             @Parameter(name = "type", description = "Type of logs", required = true)
             @PathVariable String type){
