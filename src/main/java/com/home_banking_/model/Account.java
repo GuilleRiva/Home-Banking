@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -39,17 +40,25 @@ public class Account {
     @JoinColumn(name = "user_id", nullable = false)
     private Users users;
 
-    @OneToMany(mappedBy = "accountOrigin")
-    private List<Transaction> transactionOrigin;
+    @OneToMany(mappedBy = "accountOrigin",
+    cascade = CascadeType.ALL,
+    orphanRemoval = true)
+    private List<Transaction> transactionOrigin= new ArrayList<>();
 
-    @OneToMany(mappedBy = "account")
-    private List<Loan> loans;
+    @OneToMany(mappedBy = "account",
+    cascade = CascadeType.ALL,
+    orphanRemoval = true)
+    private List<Loan> loans=new ArrayList<>();
 
-    @OneToMany(mappedBy = "account")
-    private List<Payment> payments;
+    @OneToMany(mappedBy = "account",
+    cascade = CascadeType.ALL,
+    orphanRemoval = true)
+    private List<Payment> payments=new ArrayList<>();
 
-    @OneToMany(mappedBy = "account")
-    private List<Card> cards;
+    @OneToMany(mappedBy = "account",
+    cascade = CascadeType.ALL,
+    orphanRemoval = true)
+    private List<Card> cards= new ArrayList<>();
 
 
 }

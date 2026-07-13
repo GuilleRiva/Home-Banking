@@ -1,17 +1,28 @@
 package com.home_banking_.service;
 
+import com.home_banking_.dto.response.CardCreatedResponseDto;
 import com.home_banking_.dto.response.CardResponseDto;
-import com.home_banking_.enums.TypeCard;
-import com.home_banking_.model.Card;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
 public interface CardService {
 
-    CardResponseDto createCard(Long accountId, TypeCard typeCard, String mark);
+    CardCreatedResponseDto createMyCard(@Valid CardCreatedResponseDto request);
+
+    CardCreatedResponseDto createCardForAccount(@Valid CardCreatedResponseDto request);
 
     void cancelCard(Long cardId);
 
+    void blockMyCard(Long cardId);
 
-    List<CardResponseDto> getCardByAccount(Long accountId);
+    void cancelMyCard(Long cardId);
+
+    void blockCard(Long cardId);
+
+    List<CardResponseDto> getMyCards();
+
+    List<CardResponseDto> getMyCardsByAccount(Long accountId);
+
+    List<CardResponseDto> getCardsByAccount(Long accountId);
 }
