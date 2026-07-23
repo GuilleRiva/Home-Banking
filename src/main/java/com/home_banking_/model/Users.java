@@ -47,7 +47,7 @@ public class Users {
     @OneToMany(mappedBy ="users", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<AuditLog> auditLogs;
 
-    @OneToMany(mappedBy = "users", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "recipient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Notification> notifications;
 
     @OneToMany(mappedBy = "users", cascade = CascadeType.ALL,fetch = FetchType.LAZY)

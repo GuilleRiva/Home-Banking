@@ -1,23 +1,23 @@
 package com.home_banking_.service;
 
-import com.home_banking_.dto.request.NotificationRequestDto;
+import com.home_banking_.dto.request.NotificationCommand;
 import com.home_banking_.dto.response.NotificationResponseDto;
 
 import java.util.List;
 
 public interface NotificationService {
 
-    NotificationResponseDto createNotification (NotificationRequestDto dto);
+    void notifyUser(NotificationCommand command);
 
-    List<NotificationResponseDto> createNotificationByUser(Long userId);
+    List<NotificationResponseDto> getMyNotifications();
 
-    List<NotificationResponseDto> getNotificationByUser(Long userId);
+    List<NotificationResponseDto> getMyUnreadNotifications();
 
-    List<NotificationResponseDto>getUnreadByUser(Long userId);
+    long countMyUnreadNotifications();
 
-    void markAsRead(Long notificationId);
+    void markMyNotificationAsRead(Long notificationId);
 
-    void deleteNotification(Long notificationId);
+    void markAllMyNotificationsAsRead();
 
 
 }

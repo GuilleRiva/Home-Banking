@@ -1,159 +1,204 @@
 package com.home_banking_.service.impl;
 
-import com.home_banking_.dto.request.NotificationRequestDto;
+import com.home_banking_.dto.request.NotificationCommand;
 import com.home_banking_.dto.response.NotificationResponseDto;
-import com.home_banking_.enums.TypeNotification;
+import com.home_banking_.enums.NotificationReferenceType;
+import com.home_banking_.exceptions.custom.BusinessException;
 import com.home_banking_.exceptions.custom.ResourceNotFoundException;
 import com.home_banking_.mappers.NotificationMapper;
 import com.home_banking_.model.Notification;
-import com.home_banking_.model.Users;
 import com.home_banking_.repository.NotificationRepository;
-import com.home_banking_.repository.UsersRepository;
 import com.home_banking_.service.NotificationService;
 import com.home_banking_.service.security.CurrentUserService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
-    private final UsersRepository usersRepository;
     private final NotificationMapper notificationMapper;
     private final CurrentUserService currentUserService;
 
-    public NotificationServiceImpl(NotificationRepository notificationRepository, UsersRepository usersRepository, NotificationMapper notificationMapper, CurrentUserService currentUserService) {
-        this.notificationRepository = notificationRepository;
-        this.usersRepository = usersRepository;
-        this.notificationMapper = notificationMapper;
-        this.currentUserService = currentUserService;
-    }
+    private static final int MAX_TITLE_LENGTH = 120;
+    private static final int MAX_MESSAGE_LENGTH = 500;
 
 
+    @Transactional
     @Override
-    public NotificationResponseDto createNotification(NotificationRequestDto dto) {
+    public void notifyUser(NotificationCommand command) {
+        validateNotificationCommand(command);
 
-        Users users = usersRepository.findById(Long.valueOf(dto.getUserId()))
-                .orElseThrow(()-> new ResourceNotFoundException(
-                        "User not found"
-                ));
-
-        Notification notification = notificationMapper.toEntity(dto);
-        notification.setUsers(users);
-        notification.setMessage(dto.getMessage());
-        notification.setShippingDate(LocalDateTime.now());
-        notification.setRead(false);
+        Notification notification = buildNotification(command);
 
         notificationRepository.save(notification);
 
-        log.info("Notification created usedId: {}", dto.getUserId());
-        return notificationMapper.toDto(notification);
-    }
-
-
-
-    @Override
-    public List<NotificationResponseDto> createNotificationByUser(Long userId) {
-
-        Users users = usersRepository.findById(userId)
-                .orElseThrow(()->  new ResourceNotFoundException(
-                        "User not found"
-                ));
-
-        List<Notification> notifications = new ArrayList<>();
-
-        Notification n1 = new Notification();
-        n1.setUsers(users);
-        n1.setMessage("Your loan was approved");
-        n1.setShippingDate(LocalDateTime.now());
-        n1.setRead(false);
-        n1.setTypeNotification(TypeNotification.TRANSACCION_REALIZADA);
-
-        Notification n2 = new Notification();
-        n2.setUsers(users);
-        n2.setMessage("new card available");
-        n2.setShippingDate(LocalDateTime.now());
-        n2.setRead(false);
-        n2.setTypeNotification(TypeNotification.TRANSACCION_REALIZADA);
-
-        notifications.add(n1);
-        notifications.add(n2);
-
-        notificationRepository.saveAll(notifications);
-
-        log.info("Has been created {} automatic notifications for user ID: {}", notifications.size(), userId);
-        return notifications.stream()
-                .map(notificationMapper::toDto)
-                .collect(Collectors.toList());
     }
 
 
     @Override
-    public List<NotificationResponseDto> getNotificationByUser(Long userId) {
+    public List<NotificationResponseDto> getMyNotifications() {
+        String email = currentUserService.getCurrentUserEmail();
 
-        Users users = usersRepository.findById(userId)
-                .orElseThrow(()->  new ResourceNotFoundException(
-                        "User not found"
-                ));
-
-        List<Notification> notifications = notificationRepository.findByUsers_IdOrderByShippingDateDesc(users.getId());
-
-        log.info("Total notifications found for user ID {}: {}", userId, notifications.size());
-        return notifications.stream()
-                .map(notificationMapper::toDto)
-                .collect(Collectors.toList());
+        return notificationRepository
+                .findByRecipientEmailOrderByCreatedAtDesc(email)
+                .stream()
+                .map(notificationMapper::toResponseDto)
+                .toList();
     }
 
-
-
     @Override
-    public List<NotificationResponseDto> getUnreadByUser(Long userId) {
+    public List<NotificationResponseDto> getMyUnreadNotifications() {
+        String email = currentUserService.getCurrentUserEmail();
 
-        Users users = usersRepository.findById(userId)
-                .orElseThrow(()-> new ResourceNotFoundException(
-                        "User not found"
-                ));
-
-        List<Notification> unread = notificationRepository.findByUsers_IdAndReadFalseOrderByShippingDateDesc(users.getId());
-
-        log.info("Total unread notifications for user ID {}: {}", userId, unread.size());
-        return unread.stream()
-                .map(notificationMapper::toDto)
-                .collect(Collectors.toList());
+        return notificationRepository
+                .findByRecipientEmailAndReadFalseOrderByCreatedAtDesc(email)
+                .stream()
+                .map(notificationMapper::toResponseDto)
+                .toList();
     }
 
-
     @Override
-    public void markAsRead(Long notificationId) {
+    public long countMyUnreadNotifications() {
+        String email = currentUserService.getCurrentUserEmail();
 
-        Notification noti = notificationRepository.findById(notificationId)
-                .orElseThrow(()-> new ResourceNotFoundException(
-                        "Notification not found"
-                ));
-
-        noti.setRead(true);
-        notificationRepository.save(noti);
-
-        log.info("Notification marked as read successfully. ID: {}", notificationId);
+        return notificationRepository
+                .countByRecipientEmailAndReadFalse(email);
     }
 
-
-
+    @Transactional
     @Override
-    public void deleteNotification(Long notificationId) {
+    public void markMyNotificationAsRead(Long notificationId) {
+        String email = currentUserService.getCurrentUserEmail();
 
-        if (!notificationRepository.existsById(notificationId)){
-            log.warn("Notification not found when trying to delete. ID: {}", notificationId);
-            throw new ResourceNotFoundException("Notification not found");
+        Notification notification = notificationRepository
+                .findByIdAndRecipientEmail(notificationId, email)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Notification not found"
+                        )
+                );
+
+        if (notification.isRead()) {
+            return;
         }
-        notificationRepository.deleteById(notificationId);
 
-        log.info("Notification successfully removed. ID: {}", notificationId);
+        notification.setRead(true);
+        notification.setReadAt(LocalDateTime.now());
+
+    }
+
+    @Transactional
+    @Override
+    public void markAllMyNotificationsAsRead() {
+        String email = currentUserService.getCurrentUserEmail();
+
+        notificationRepository.markAllAsReadByRecipientEmail(
+                email,
+                LocalDateTime.now()
+        );
+
+    }
+
+
+
+
+
+
+    private Notification buildNotification(NotificationCommand command) {
+        return Notification.builder()
+                .recipient(command.getRecipient())
+                .typeNotification(command.getType())
+                .title(command.getTitle())
+                .message(command.getMessage())
+                .referenceType(command.getReferenceType())
+                .referenceId(command.getReferenceId())
+                .read(false)
+                .createdAt(LocalDateTime.now())
+                .readAt(null)
+                .build();
+    }
+
+
+    private void validateNotificationCommand(NotificationCommand command) {
+        if (command == null) {
+            throw new BusinessException("Notification command is required");
+        }
+        if (command.getRecipient() == null) {
+            throw new BusinessException("Notification recipient is required");
+        }
+        if (command.getRecipient().getId() == null) {
+            throw new BusinessException("Notification recipient must be persisted");
+        }
+        if (command.getType() == null) {
+            throw new BusinessException("Notification type is required");
+        }
+
+        validateTitle(command.getTitle());
+        validateMessage(command.getMessage());
+        validateReference(command.getReferenceType(),
+                command.getReferenceId());
+    }
+
+    private void validateTitle(String title) {
+        if (title == null || title.isBlank()) {
+            throw new BusinessException(
+                    "Notification title is required"
+            );
+        }
+
+        if (title.trim().length() > MAX_TITLE_LENGTH) {
+            throw new BusinessException(
+                    "Notification title must not exceed "
+                            + MAX_TITLE_LENGTH
+                            + " characters"
+            );
+        }
+    }
+
+    private void validateMessage(String message) {
+        if (message == null || message.isBlank()) {
+            throw new BusinessException(
+                    "Notification message is required"
+            );
+        }
+
+        if (message.trim().length() > MAX_MESSAGE_LENGTH) {
+            throw new BusinessException(
+                    "Notification message must not exceed "
+                            + MAX_MESSAGE_LENGTH
+                            + " characters"
+            );
+        }
+    }
+
+    private void validateReference(
+            NotificationReferenceType referenceType,
+            Long referenceId
+    ) {
+        boolean hasReferenceType = referenceType != null;
+        boolean hasReferenceId = referenceId != null;
+
+        if (hasReferenceType != hasReferenceId) {
+            throw new BusinessException(
+                    "Notification reference type and id must be provided together"
+            );
+        }
+
+        if (referenceId != null && referenceId <= 0) {
+            throw new BusinessException(
+                    "Notification reference id must be positive"
+            );
+        }
     }
 }
+
+

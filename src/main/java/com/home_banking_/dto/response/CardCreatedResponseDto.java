@@ -15,19 +15,6 @@ import java.time.LocalDateTime;
 @Schema(description = "DTO representing a card with sensitive data masked")
 public class CardCreatedResponseDto {
 
-    @Schema(description = "Unique card ID", example = "200")
-    private Long id;
-
-    private String cardNumber;
-
-    private String cvv;
-
-    @Schema(description = "Card expiration date in MM/YY format", example = "07/28")
-    private LocalDateTime expirationDate;
-
-    @Schema(description = "Current status of the card", example = "ACTIVE",
-            implementation = StatusCard.class)
-    private StatusCard statusCard;
 
     @Schema(description = "Account ID is required")
     private Long accountId;
@@ -39,6 +26,5 @@ public class CardCreatedResponseDto {
     @Schema(description = "Card brand is required", example = "MASTERCARD",
     implementation = CardBrand.class)
     private CardBrand brand;
-
 
 }
