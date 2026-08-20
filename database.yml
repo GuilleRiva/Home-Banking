@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/banking
+    username: ${MYSQL_DATABASE}
+    password: ${MYSQL_ROOT_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true

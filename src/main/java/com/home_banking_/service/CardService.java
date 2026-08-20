@@ -1,5 +1,6 @@
 package com.home_banking_.service;
 
+import com.home_banking_.dto.request.CardCreatedRequestDto;
 import com.home_banking_.dto.response.CardCreatedResponseDto;
 import com.home_banking_.dto.response.CardResponseDto;
 import jakarta.validation.Valid;
@@ -8,9 +9,9 @@ import java.util.List;
 
 public interface CardService {
 
-    CardCreatedResponseDto createMyCard(@Valid CardCreatedResponseDto request);
+    CardCreatedResponseDto createMyCard(@Valid CardCreatedRequestDto request);
 
-    CardCreatedResponseDto createCardForAccount(@Valid CardCreatedResponseDto request);
+    CardCreatedResponseDto createCardForAccount(@Valid CardCreatedRequestDto request);
 
     void cancelCard(Long cardId);
 
@@ -25,4 +26,5 @@ public interface CardService {
     List<CardResponseDto> getMyCardsByAccount(Long accountId);
 
     List<CardResponseDto> getCardsByAccount(Long accountId);
+
 }

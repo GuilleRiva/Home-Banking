@@ -5,15 +5,32 @@ spring:
   application:
     name: home-banking-api
   jpa:
-    open-in-view: false
+    show-sql: false
+    hibernate:
+      naming:
+        implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+
+  main:
+    allow-circular-references: true
+
+application:
+  security:
+    jwt:
+      expiration-ms: ${JWT_EXPIRATION:900000}
+      refresh-token:
+        expiration-ms: ${JWT_REFRESH_EXPIRATION:1296000000}
+
+jwt:
+  secret: ${JWT_SECRET}
 
 management:
   endpoints:
     web:
       exposure:
         include: "health,info"
-  metrics:
-    export:
-      prometheus:
-        enabled: true
+
+logging:
+  level:
+    root: INFO
 

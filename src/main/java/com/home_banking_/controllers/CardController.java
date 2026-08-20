@@ -1,5 +1,6 @@
 package com.home_banking_.controllers;
 
+import com.home_banking_.dto.request.CardCreatedRequestDto;
 import com.home_banking_.dto.response.CardCreatedResponseDto;
 import com.home_banking_.dto.response.CardResponseDto;
 import com.home_banking_.service.CardService;
@@ -51,7 +52,7 @@ public class CardController {
     @PostMapping("/me")
     @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<CardCreatedResponseDto> createMyCard(
-            @Valid @RequestBody CardCreatedResponseDto request){
+            @Valid @RequestBody CardCreatedRequestDto request){
 
         log.info("[POST_CREATE_MY_CARD] accountId={} typeCard={} brand={}",
                 request.getAccountId(),
@@ -85,7 +86,7 @@ public class CardController {
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','EMPLOYED')")
     public ResponseEntity<CardCreatedResponseDto> createCardForAccount(
-            @Valid @RequestBody CardCreatedResponseDto request
+            @Valid @RequestBody CardCreatedRequestDto request
     ) {
         log.info(
                 "[POST_CREATE_CARD_FOR_ACCOUNT] accountId={} typeCard={} brand={}",

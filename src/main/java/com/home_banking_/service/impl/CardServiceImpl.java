@@ -1,11 +1,13 @@
 package com.home_banking_.service.impl;
 
+import com.home_banking_.dto.request.CardCreatedRequestDto;
 import com.home_banking_.dto.response.CardCreatedResponseDto;
 import com.home_banking_.dto.response.CardResponseDto;
 import com.home_banking_.enums.StatusAccount;
 import com.home_banking_.enums.StatusCard;
 import com.home_banking_.enums.TypeCard;
 import com.home_banking_.enums.audit.CardBrand;
+import com.home_banking_.event.card.CardCreatedEvent;
 import com.home_banking_.exceptions.custom.BusinessException;
 import com.home_banking_.exceptions.custom.ResourceNotFoundException;
 import com.home_banking_.mappers.CardMapper;
@@ -16,7 +18,9 @@ import com.home_banking_.repository.CardRepository;
 import com.home_banking_.service.CardService;
 import com.home_banking_.service.security.CurrentUserService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +30,7 @@ import java.util.List;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class CardServiceImpl implements CardService {
 
     private static final List<StatusCard> ACTIVE_OR_BLOCKED =
@@ -38,17 +43,11 @@ public class CardServiceImpl implements CardService {
     private final CardMapper cardMapper;
     private final CurrentUserService currentUserService;
 
-    public CardServiceImpl(CardRepository cardRepository, AccountRepository accountRepository, CardMapper cardMapper, CurrentUserService currentUserService) {
-        this.cardRepository = cardRepository;
-        this.accountRepository = accountRepository;
-        this.cardMapper = cardMapper;
-        this.currentUserService = currentUserService;
-    }
-
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
-    public CardCreatedResponseDto createMyCard(@Valid CardCreatedResponseDto request) {
+    public CardCreatedResponseDto createMyCard(@Valid CardCreatedRequestDto request) {
         String email = currentUserService.getCurrentUserEmail();
 
         log.info("[CREATE_MY_CARD_INIT] userEmail={} accountId={} typeCard={} brand={}",
@@ -62,6 +61,15 @@ public class CardServiceImpl implements CardService {
 
         Card savedCard = cardRepository.save(card);
 
+        eventPublisher.publishEvent(
+                new CardCreatedEvent(
+                        savedCard.getId(),
+                        account.getUsers().getId(),
+                        savedCard.getTypeCard(),
+                        savedCard.getBrand()
+                )
+        );
+
         log.info("[CREATE_MY_CARD_SUCCESS] userEmail={} accountId={} cardId={} typeCard={} brand={}",
                 email, account.getId(), savedCard.getId(), savedCard.getTypeCard(), savedCard.getBrand());
 
@@ -70,7 +78,7 @@ public class CardServiceImpl implements CardService {
 
     @Override
     @Transactional
-    public CardCreatedResponseDto createCardForAccount(@Valid CardCreatedResponseDto request) {
+    public CardCreatedResponseDto createCardForAccount(@Valid CardCreatedRequestDto request) {
         log.info("[CREATE_CARD_FOR_ACCOUNT_INIT] accountId={} typeCard={} brand={}",
                 request.getAccountId(), request.getTypeCard(), request.getBrand());
 
@@ -81,6 +89,15 @@ public class CardServiceImpl implements CardService {
         Card card = buildCard(account, request.getTypeCard(),request.getBrand());
 
         Card savedCard = cardRepository.save(card);
+
+        eventPublisher.publishEvent(
+                new CardCreatedEvent(
+                        savedCard.getId(),
+                        account.getUsers().getId(),
+                        savedCard.getTypeCard(),
+                        savedCard.getBrand()
+                )
+        );
 
         log.info("[CREATE_CARD_FOR_ACCOUNT_SUCCESS] accountId={} cardId={} typeCard={} brand={}",
                 account.getId(), savedCard.getId(), savedCard.getTypeCard(), savedCard.getBrand());
@@ -186,7 +203,7 @@ public class CardServiceImpl implements CardService {
         Account account = getOwnedActiveAccountOrThrow(accountId,email);
 
         List<CardResponseDto> cards = cardRepository
-                .findByIdAndAccountUsersEmail(account.getId(), email)
+                .findByAccountIdAndAccountUsersEmail(account.getId(), email)
                 .stream()
                 .map(cardMapper::toResponseDto)
                 .toList();

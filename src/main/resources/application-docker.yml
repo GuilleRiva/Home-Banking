@@ -1,12 +1,8 @@
-# application-dev.yml
 server:
-  port: 8081
+  port: 8080
   forward-headers-strategy: framework
 
 spring:
-  application:
-    name: home-banking-api
-
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
@@ -18,7 +14,9 @@ spring:
     hibernate:
       ddl-auto: validate
     properties:
-      hibernate.jdbc.time_zone: UTC
+      hibernate:
+        jdbc:
+          time_zone: UTC
 
 management:
   server:
@@ -36,3 +34,4 @@ management:
 logging:
   level:
     root: INFO
+

@@ -22,6 +22,8 @@ public interface CardRepository extends JpaRepository<Card, Long> {
 
     List<Card> findByAccountUsersEmail(String email);
 
+    List<Card> findByAccountIdAndAccountUsersEmail(Long accountId, String email);
+
     boolean existsByCardNumber(String cardNumber);
 
     boolean existsByAccountIdAndTypeCardAndStatusCardIn(

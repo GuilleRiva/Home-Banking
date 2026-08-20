@@ -13,6 +13,7 @@ import com.home_banking_.service.security.CurrentUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -32,7 +33,7 @@ public class NotificationServiceImpl implements NotificationService {
     private static final int MAX_MESSAGE_LENGTH = 500;
 
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @Override
     public void notifyUser(NotificationCommand command) {
         validateNotificationCommand(command);

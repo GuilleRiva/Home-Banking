@@ -1,9 +1,9 @@
 spring:
   datasource:
     url: ${DB_URL}
-    username: ${DB_USER}
-    password: ${DB_PASS}
-    driven-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: ${DB_POOL_MAX:10}
       minimum-idle: ${DB_POOL_MIN:2}
@@ -12,24 +12,19 @@ spring:
       max-lifetime: ${DB_MAX_LIFETIME_MS:1800000}
 
   jpa:
-    open-in-view: false
     hibernate:
-        ddl-auto: validate
+      ddl-auto: validate
     properties:
       hibernate:
         jdbc:
           time_zone: UTC
-
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
 
 server:
   port: ${SERVER_PORT:8080}
   forward-headers-strategy: framework
   compression:
     enabled: true
-    mime-types: "application/json,text/plain"
+    mime-types: "application/json,text/plain,application/problem+json"
     min-response-size: 1024
   tomcat:
     connection-timeout: 10s
