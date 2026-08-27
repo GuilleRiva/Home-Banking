@@ -10,19 +10,23 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
+@Table(name = "card")
 public class Card {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @Column(name = "card_number", nullable = false, unique = true)
     private String cardNumber;
+
     @Column(name = "expiration_date", nullable = false)
     private LocalDateTime expirationDate;
+
     @Column(name = "cvv", nullable = false)
     private String cvv;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "type_card", nullable = false, length = 30)
     private TypeCard typeCard;
 
     @Enumerated(EnumType.STRING)
@@ -30,7 +34,7 @@ public class Card {
     private CardBrand brand;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "status_card", nullable = false, length = 30)
     private StatusCard statusCard;
 
     @ManyToOne(fetch = FetchType.LAZY)

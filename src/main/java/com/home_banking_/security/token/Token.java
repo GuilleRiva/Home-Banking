@@ -31,7 +31,7 @@ public class Token {
     private boolean expired;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(name = "jwt_token_type", nullable = false, length = 20)
     private JwtTokenType jwtTokenType;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

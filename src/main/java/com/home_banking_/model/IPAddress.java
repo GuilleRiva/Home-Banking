@@ -13,12 +13,18 @@ public class IPAddress {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String directionIP;
+
+    @Column(name = "ip", nullable = false, length = 45)
+    private String ip;
+
+    @Column(name = "registration_date", nullable = false)
     private LocalDateTime registrationDate;
+
+    @Column(nullable = false)
     private boolean suspicious;
 
     @ManyToOne
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", nullable = false)
     private Users users;
 
 }

@@ -54,7 +54,7 @@ public class IPAddressServiceImpl implements IPAddressService {
         log.info("[REGISTER_IP_SUCCESS] userId={} ipAddressId={} ip={}",
                 users.getId(),
                 savedIPAddress.getId(),
-                maskIp(savedIPAddress.getDirectionIP()));
+                maskIp(savedIPAddress.getIp()));
 
         return ipAddressMapper.toDTO(savedIPAddress);
     }
@@ -89,7 +89,7 @@ public class IPAddressServiceImpl implements IPAddressService {
 
         String maskedIp = maskIp(ip);
 
-        boolean suspicious = ipAddressRepository.existsByDirectionIPAndSuspiciousTrue(ip);
+        boolean suspicious = ipAddressRepository.existsByIpAndSuspiciousTrue(ip);
 
         log.info("[IP_SUSPICIOUS_CHECK] ip={} suspicious={}",
                 maskedIp, suspicious);
@@ -132,7 +132,7 @@ public class IPAddressServiceImpl implements IPAddressService {
 
     private IPAddress buildIPAddress(IPAddressRequestDto dto, Users user) {
         IPAddress ipAddress = ipAddressMapper.toEntity(dto);
-        ipAddress.setDirectionIP(dto.getIpAddress());
+        ipAddress.setIp(dto.getIpAddress());
         ipAddress.setRegistrationDate(LocalDateTime.now());
         ipAddress.setUsers(user);
 

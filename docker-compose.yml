@@ -13,7 +13,7 @@ services:
       - "127.0.0.1:3308:3306"
 
     volumes:
-      - ./mysql_data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
 
     healthcheck:
       test:
@@ -51,5 +51,7 @@ services:
       JWT_EXPIRATION: ${JWT_EXPIRATION}
       JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION}
 
-
     restart: "no"
+
+volumes:
+  mysql_data:

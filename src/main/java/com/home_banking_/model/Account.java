@@ -16,24 +16,40 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
+@Table(name = "account")
 public class Account {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "account_number", nullable = false, unique = true, length = 30)
     private String accountNumber;
+
+    @Column(nullable = false, unique = true, length = 100)
     private String alias;
+
+    @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal balance;
+
+    @Column(name = "cbu", nullable = false, unique = true, length = 22)
     private String CBU;
+
+    @Column(name = "creation_date", nullable = false)
     private LocalDateTime creationDate;
+
+    @Column(name = "mask_alias", length = 100)
     private String maskAlias;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "type_account", nullable = false, length = 30)
     private TypeAccount typeAccount;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "status_account", nullable = false, length = 30)
     private StatusAccount statusAccount;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
     private Currency currency;
 
     @ManyToOne(fetch = FetchType.LAZY)

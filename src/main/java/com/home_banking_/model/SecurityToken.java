@@ -12,10 +12,20 @@ public class SecurityToken {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false, unique = true, length = 255)
     private String token;
+
+    @Column(nullable = false)
     private boolean expired;
+
+    @Column(nullable = false)
     private boolean revoked;
-    private LocalDateTime createIn;
+
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    @Column(nullable = false)
     private LocalDateTime expiration;
 
 }

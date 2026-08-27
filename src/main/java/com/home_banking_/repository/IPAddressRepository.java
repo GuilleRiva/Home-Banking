@@ -16,6 +16,5 @@ public interface IPAddressRepository extends JpaRepository<IPAddress, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<IPAddress> findByUsersId(Long userId);
 
-
-    boolean existsByDirectionIPAndSuspiciousTrue(String ip);
+    boolean existsByIpAndSuspiciousTrue(String ip);
 }

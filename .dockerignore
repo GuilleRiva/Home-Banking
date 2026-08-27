@@ -1,19 +1,15 @@
 .git
-
 .idea
-
 .vscode
 
 .env
-
 .env.*
-
 !.env.example
 
 mysql_data
-
 mysql-data
 
 logs
-
 *.log
+
+*.iml

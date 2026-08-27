@@ -3,10 +3,6 @@ server:
   port: 8081
   forward-headers-strategy: framework
 
-spring:
-  application:
-    name: home-banking-api
-
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
@@ -20,6 +16,11 @@ spring:
     properties:
       hibernate.jdbc.time_zone: UTC
 
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
 management:
   server:
     port: 9090
@@ -32,7 +33,3 @@ management:
       probes:
         enabled: true
       show-details: "never"
-
-logging:
-  level:
-    root: INFO

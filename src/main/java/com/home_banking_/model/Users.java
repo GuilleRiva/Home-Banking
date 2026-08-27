@@ -17,28 +17,40 @@ public class Users {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @Column(nullable = false, length = 100)
     private String name;
+
     @Column(nullable = false, length = 100)
     private String surname;
+
     @Column(nullable = false, unique = true, length = 150)
     private String email;
+
     @Column(nullable = false)
     private String password;
+
     @Column(name = "dni", nullable = false, unique = true, length = 20)
     private String dni;
-    @Column(nullable = false)
+
+    @Column(name = "registration_date", nullable = false)
     private LocalDateTime registrationDate;
 
+    @Column(name = "failed_login_attempts", nullable = false)
     private int failedLoginAttempts;
+
+    @Column(name = "account_locked", nullable = false)
     private boolean accountLocked;
+
+    @Column(name = "lock_time")
     protected LocalDateTime lockTime;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
     private Rol rol;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
+    @Column(name="user_status" ,nullable = false, length = 30)
     private UserStatus userStatus;
 
     @OneToMany(mappedBy = "users", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

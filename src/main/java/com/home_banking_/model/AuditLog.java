@@ -13,13 +13,24 @@ public class AuditLog {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(nullable = false, length = 100)
     private String action;
+
+    @Column(length = 500)
     private String description;
+
+    @Column(name = "date_time", nullable = false)
     private LocalDateTime dateTime;
+
+    @Column(name = "ip_origin", length = 45)
     private String ipOrigin;
+
+    @Column(length = 150)
     private String location;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 40)
     private AuditType type;
 
     @ManyToOne
