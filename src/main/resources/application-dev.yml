@@ -3,6 +3,7 @@ server:
   port: 8081
   forward-headers-strategy: framework
 
+spring:
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
@@ -19,7 +20,6 @@ server:
   flyway:
     enabled: true
     locations: classpath:db/migration
-    baseline-on-migrate: true
 
 management:
   server:

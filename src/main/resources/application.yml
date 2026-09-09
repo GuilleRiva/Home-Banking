@@ -11,6 +11,10 @@ spring:
         implicit-strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
 
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
   main:
     allow-circular-references: true
 
