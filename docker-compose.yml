@@ -13,6 +13,12 @@ services:
     ports:
       - "127.0.0.1:3308:3306"
 
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
     volumes:
       - mysql_data:/var/lib/mysql
 
@@ -39,6 +45,12 @@ services:
 
     ports:
       - "8082:8080"
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
 
     depends_on:
       mysql:
