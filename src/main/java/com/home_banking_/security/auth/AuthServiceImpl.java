@@ -43,6 +43,9 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService{
 
+    private static final int MAX_FAILED_LOGIN_ATTEMPTS = 5;
+    private static final long ACCOUNT_LOCK_MINUTES = 15;
+
     private final UsersRepository usersRepository;
     private final TokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
@@ -270,7 +273,7 @@ public class AuthServiceImpl implements AuthService{
     @Transactional
     @Override
     public void changePassword(ChangePasswordRequest request, String userEmail, String ipAddress) {
-        String normalizedEmail= normalizeEmail(normalizeEmail(userEmail));
+        String normalizedEmail = normalizeEmail(userEmail);
 
         Users user = getUserByEmailOrThrow(normalizedEmail);
 
@@ -396,7 +399,10 @@ public class AuthServiceImpl implements AuthService{
 
     private boolean isLockPeriodActive(Users user) {
         return user.getLockTime() != null &&
-                Duration.between(user.getLockTime(), LocalDateTime.now()).toMinutes() < 15;
+                Duration.between(
+                        user.getLockTime(),
+                        LocalDateTime.now()
+                ).toMinutes() < ACCOUNT_LOCK_MINUTES;
     }
 
     private void unlockUserAccount(Users user) {
@@ -449,7 +455,7 @@ public class AuthServiceImpl implements AuthService{
 
         user.setFailedLoginAttempts(attempts);
 
-        if (attempts >= user.getFailedLoginAttempts()) {
+        if (attempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
             user.setAccountLocked(true);
             user.setLockTime(LocalDateTime.now());
         }

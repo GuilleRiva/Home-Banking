@@ -55,12 +55,13 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/register",
                                 "/error",
-                                "/actuator/***",
+                                "/actuator/**",
                                 "/favicon.ico"
                                 ).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/client/**").hasRole("CLIENT")
                         .requestMatchers("/api/employed/**").hasRole("EMPLOYED")
+                        .requestMatchers("/api/auditor/**").hasRole("AUDITOR")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)

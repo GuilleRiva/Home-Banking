@@ -45,13 +45,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
                     return;
         }
-
 
         String jwt = authHeader.substring(7);
 
@@ -61,7 +59,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request,response);
             return;
         }
-
 
         try {
 
@@ -75,24 +72,42 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 if (cryptoValid  && dbValid) {
 
-
                     UserDetails ud = userDetailsService.loadUserByUsername(username);
 
+                    if (!ud.isEnabled() || !ud.isAccountNonLocked()) {
+                        log.debug(
+                                "JWT authentication rejected due to user state." +
+                                        "principal={}, enabled={}, nonLocked={}",
+                                username,
+                                ud.isEnabled(),
+                                ud.isAccountNonLocked()
+                        );
 
-                    var auth = new UsernamePasswordAuthenticationToken(ud, null ,ud.getAuthorities());
+                        SecurityContextHolder.clearContext();
 
-                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        filterChain.doFilter(request,response);
+                        return;
+                    }
+
+                    var auth = new UsernamePasswordAuthenticationToken(
+                            ud,
+                            null,
+                            ud.getAuthorities()
+                    );
+
+                    auth.setDetails(
+                            new WebAuthenticationDetailsSource().buildDetails(request)
+                    );
+
                     SecurityContextHolder.getContext().setAuthentication(auth);
 
-                    log.info("JWT OK: principal={}, authorities={}", username, ud.getAuthorities());
-                } else {
-                    log.debug("JWT inválido : cryptoValid={}, dbValid={}, path={}",
-                            cryptoValid, dbValid, path);
+                    log.info(
+                            "JWT OK: principal={}, authorities={}",
+                            username,
+                            ud.getAuthorities()
+                    );
                 }
-
             }
-
-            filterChain.doFilter(request, response);
 
         } catch (JwtException | IllegalArgumentException e) {
 
@@ -101,7 +116,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
 
         }
-
 
     }
 }

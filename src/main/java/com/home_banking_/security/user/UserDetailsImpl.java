@@ -1,6 +1,7 @@
 package com.home_banking_.security.user;
 
 import com.home_banking_.enums.Rol;
+import com.home_banking_.enums.UserStatus;
 import com.home_banking_.model.Users;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -13,35 +14,41 @@ import java.util.List;
 @Getter
 @AllArgsConstructor
 public class UserDetailsImpl implements UserDetails {
+
     private final Long id;
     private final String email;
     private final String password;
     private final Collection<? extends GrantedAuthority> authorities;
     private final boolean enabled;
+    private final boolean accountNonLocked;
 
     public static UserDetailsImpl build(Users u) {
 
         Rol enumRol = u.getRol();
 
-        String roleName= (enumRol != null) ? enumRol.name() :  null;
-
         List<GrantedAuthority> auths =
-                (roleName == null)
-                ? List.of()
-                        : List.of(new SimpleGrantedAuthority(
-                                roleName.startsWith("ROLE_") ? roleName : "ROLE_" + roleName
-                ));
+                enumRol == null
+                        ? List.of()
+                        : List.of(
+                        new SimpleGrantedAuthority(
+                                "ROLE_" + enumRol.name()
+                        )
+                );
 
         return new UserDetailsImpl(
                 u.getId(),
                 u.getEmail(),
                 u.getPassword(),
                 auths,
-                true
+                u.getUserStatus() == UserStatus.ACTIVE,
+                !u.isAccountLocked()
         );
     }
 
-    @Override public String getUsername(){ return email;}
+    @Override
+    public String getUsername() {
+        return email;
+    }
 
     @Override
     public boolean isAccountNonExpired() {
@@ -50,7 +57,7 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        return accountNonLocked;
     }
 
     @Override
